@@ -31,3 +31,4 @@ npm run dev
 ```
 
 Open http://localhost:3000 to preview. The page is in `app/page.tsx` — all content, styles, and canvas animation are in that single file.
+
