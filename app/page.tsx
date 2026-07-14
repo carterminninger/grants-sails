@@ -462,7 +462,7 @@ export default function GrantsSails() {
       </section>
 
       {/* STATS */}
-      <div style={{ background:`linear-gradient(135deg,${C.ocean},${C.teal})`, padding:isMobile?"28px 6%":"40px 5%", borderTop:`3px solid ${C.gold}` }}>
+      <div style={{ background:`linear-gradient(135deg,${C.ocean},${C.navy})`, padding:isMobile?"28px 6%":"40px 5%", borderTop:`3px solid ${C.gold}` }}>
         <div style={{ maxWidth:"900px", margin:"0 auto", display:"grid", gridTemplateColumns:isMobile?"repeat(3,1fr)":"repeat(auto-fit,minmax(140px,1fr))", gap:"32px" }}>
           <StatBadge value="4.99 ★" label="Puget Sound Rating"/>
           <StatBadge value="5.0 ★" label="Lake Union Rating"/>
