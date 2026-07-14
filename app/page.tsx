@@ -564,7 +564,7 @@ export default function GrantsSails() {
       </section>
 
       {/* BOOK CTA */}
-      <section id="book" style={{ background:`linear-gradient(135deg,${C.ocean} 0%,${C.teal} 50%,${C.ocean} 100%)`, padding:"120px 5%", textAlign:"center", position:"relative", overflow:"hidden" }}>
+      <section id="book" style={{ background:`linear-gradient(135deg,${C.ocean} 0%,${C.navy} 50%,${C.ocean} 100%)`, padding:"120px 5%", textAlign:"center", position:"relative", overflow:"hidden" }}>
         <div style={{ position:"absolute", inset:0, backgroundImage:`radial-gradient(ellipse at 30% 50%,rgba(247,197,106,0.08) 0%,transparent 60%),radial-gradient(ellipse at 70% 50%,rgba(11,30,45,0.3) 0%,transparent 60%)`, pointerEvents:"none" }}/>
         <div style={{ position:"relative", zIndex:1, maxWidth:"640px", margin:"0 auto" }}>
           <Reveal>
