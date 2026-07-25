@@ -1255,7 +1255,10 @@ export default function GrantsSails() {
             </div>
           </div>
         </div>
-        <div style={{ position:"absolute", bottom:"32px", left:"50%", transform:"translateX(-50%)", zIndex:10, display:"flex", flexDirection:"column", alignItems:"center", gap:"8px", opacity:0.5, animation:"fadeUp 1s ease 1.2s both" }}>
+        {/* Hidden on mobile: the CTAs wrap to two rows at 390px and the cue lands
+            on top of the Airbnb button. A scroll hint is desktop affordance anyway
+            — a phone user already knows the page scrolls. */}
+        <div style={{ position:"absolute", bottom:"32px", left:"50%", transform:"translateX(-50%)", zIndex:10, display:isMobile?"none":"flex", flexDirection:"column", alignItems:"center", gap:"8px", opacity:0.5, animation:"fadeUp 1s ease 1.2s both" }}>
           <div style={{ fontSize:"9px", letterSpacing:"0.3em", color:C.mist, textTransform:"uppercase" }}>Explore</div>
           <div style={{ width:"1px", height:"36px", background:`linear-gradient(to bottom,${C.seafoam},transparent)` }}/>
         </div>
