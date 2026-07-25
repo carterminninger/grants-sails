@@ -539,10 +539,20 @@ function SkyCanvas({ isMobile = false }) {
       rawScroll = 0;
       const vel = Math.max(-12, Math.min(12, scrollVel * 0.6));
       const chop = Math.abs(vel) * 0.42;            // fast scroll kicks up sea state
-      const drift = Math.min(scrollDepth / Math.max(H, 1), 1);
-
+      /* Land parallax is HORIZONTAL ONLY, deliberately.
+         The water is a FIXED plane: the water fill, the horizon haze band, every
+         wave baseline and surfaceY() all key off `horizon`. So any VERTICAL
+         offset on the land slides the land against its own waterline.
+         Measured before this change: at ptr.y = -1 the skyline lifted ~15 device
+         px clear of the water and opened a gap showing bare sky (peak luminance
+         170.7 where water should be), and the scroll-depth term drove it the
+         other way, sinking the land 21 / 42 / 84 device px at 0.25 / 0.5 / 1.0
+         viewport heights. A horizontal slide along a horizontal waterline cannot
+         open a gap, and OVER = 32 of overscan covers the +/-15px of travel.
+         The scroll-depth term goes with it. Scroll REACTIVITY is untouched — it
+         runs through `vel` above, into sea chop and the gulls. */
       const pxS = ptr.x * 6, pyS = ptr.y * 4;                       // sky parallax
-      const pxL = ptr.x * 15, pyL = ptr.y * 9 + drift * H * 0.05;   // land parallax
+      const pxL = ptr.x * 15, pyL = 0;                              // land: horizontal only
       const pxW = ptr.x * 24;                                       // water parallax
 
       ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
