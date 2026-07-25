@@ -658,6 +658,21 @@ function SkyCanvas({ isMobile = false }) {
       /* ── land: one blit of the pre-rendered layer ── */
       ctx!.drawImage(land, 0, 0, land.width, land.height, -OVER + pxL, pyL, W + OVER * 2, H);
 
+      /* ── twinkling windows ──
+         Drawn immediately after the land blit and BEFORE the afterglow bleed, so
+         they take the same "lighter" lift the baked windows take. They used to be
+         drawn after the bleed, which brightened only the baked layer and left the
+         windows that move also being the windows that are dimmest. */
+      windows.filter(w => w.tw).forEach(w => {
+        const [bx, bw, bh] = SKYLINE[w.b];
+        const bH = H * bh, bY = horizon - bH;
+        // Centred at 0.78, at or above the baked layer's 0.75, swinging +/-0.42.
+        const a = w.a * (0.78 + 0.42 * Math.sin(tsec * w.sp + w.ph));
+        if (a < 0.04) return;
+        ctx!.fillStyle = `rgba(255,238,180,${a})`;
+        ctx!.fillRect(OVER + (bx + w.fx * bw) * W - 1.5 - OVER + pxL, bY + w.fy * bH + pyL, 3, 4);
+      });
+
       /* ── afterglow bleeding over the ridgeline, drawn AFTER the silhouette ── */
       ctx!.save();
       ctx!.globalCompositeOperation = "lighter";
@@ -670,15 +685,7 @@ function SkyCanvas({ isMobile = false }) {
       ctx!.fill();
       ctx!.restore();
 
-      /* ── twinkling windows + Space Needle lights ── */
-      windows.filter(w => w.tw).forEach(w => {
-        const [bx, bw, bh] = SKYLINE[w.b];
-        const bH = H * bh, bY = horizon - bH;
-        const a = w.a * (0.45 + 0.55 * Math.sin(tsec * w.sp + w.ph));
-        if (a < 0.04) return;
-        ctx!.fillStyle = `rgba(255,238,180,${a})`;
-        ctx!.fillRect(OVER + (bx + w.fx * bw) * W - 1.5 - OVER + pxL, bY + w.fy * bH + pyL, 3, 4);
-      });
+      /* ── Space Needle lights ── */
       {
         const nx = W * 0.752 + pxL, nh = H * 0.235, nb = horizon + pyL;
         const halo = ctx!.createRadialGradient(nx, nb - nh * 0.855, 0, nx, nb - nh * 0.855, nh * 0.36);
