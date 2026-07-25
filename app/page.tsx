@@ -1238,11 +1238,7 @@ export default function GrantsSails() {
       {/* HERO */}
       <section id="hero" style={{ position:"relative", height:"100vh", minHeight:"600px", display:"flex", alignItems:"flex-end", overflow:"hidden" }}>
         <SkyCanvas isMobile={isMobile}/>
-        {/* The scrim reaches higher than it used to: on a phone the content block
-            is tall enough that the review label landed on the mountain silhouette
-            with almost no separation. The block is bottom-anchored, so on desktop
-            this only darkens behind the headline and never touches the boat. */}
-        <div style={{ position:"relative", zIndex:10, width:"100%", padding:"0 6% 10%", background:"linear-gradient(to top,rgba(11,30,45,0.93) 0%,rgba(11,30,45,0.80) 45%,rgba(11,30,45,0.38) 78%,transparent 100%)" }}>
+        <div style={{ position:"relative", zIndex:10, width:"100%", padding:"0 6% 10%", background:"linear-gradient(to top,rgba(11,30,45,0.85) 0%,transparent 100%)" }}>
           <div style={{ animation:"fadeUp 1s ease 0.3s both", maxWidth:"680px" }}>
             <div style={{ fontSize:"11px", letterSpacing:"0.35em", color:C.seafoam, textTransform:"uppercase", marginBottom:"16px" }}>★ 4.99 · 579+ Reviews · USCG Licensed Captain</div>
             <h1 style={{ fontFamily:"Georgia,serif", fontSize:"clamp(42px,8vw,88px)", fontWeight:900, lineHeight:0.95, letterSpacing:"-0.02em", color:C.white, marginBottom:"20px", textShadow:"0 2px 40px rgba(0,0,0,0.5)" }}>
