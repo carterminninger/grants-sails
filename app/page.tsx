@@ -1100,13 +1100,30 @@ function SkyCanvas({ isMobile = false }) {
   return <canvas ref={ref} aria-hidden="true" style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block" }}/>;
 }
 
+/* Both paths are STRICTLY PERIODIC and drawn at double width, so translating a
+   layer by exactly -50% of its own width lands on an identical shape and the
+   loop is seamless. Back has period 720 and front 480; 1440 is a whole number
+   of both (2 and 3), which is the condition for that to hold. The two layers
+   drift at different speeds and in opposite directions, so the divider never
+   repeats as a whole and reads as continuous with the hero water rather than
+   as a frozen shape. Pure CSS transform on two SVGs — no second canvas. */
+const WAVE_BACK = "M0,40 C180,80 540,0 720,40 C900,80 1260,0 1440,40 C1620,80 1980,0 2160,40 C2340,80 2700,0 2880,40 L2880,80 L0,80 Z";
+const WAVE_FRONT = "M0,50 C120,20 360,80 480,50 C600,20 840,80 960,50 C1080,20 1320,80 1440,50 C1560,20 1800,80 1920,50 C2040,20 2280,80 2400,50 C2520,20 2760,80 2880,50 L2880,80 L0,80 Z";
+
 function WaveDivider({ flip = false, fill = C.deep, bg = "transparent" }: { flip?: boolean; fill?: string; bg?: string }) {
+  const layer = (d: string, opacity: number, dur: number, reverse: boolean) => (
+    <svg viewBox="0 0 2880 80" preserveAspectRatio="none" aria-hidden="true"
+      className="wave-drift"
+      style={{ position:"absolute", top:0, left:0, width:"200%", height:"80px", display:"block",
+               animationDuration:`${dur}s`, animationDirection: reverse ? "reverse" : "normal" }}>
+      <path d={d} fill={fill} opacity={opacity}/>
+    </svg>
+  );
   return (
-    <div style={{ background: bg, lineHeight: 0, transform: flip ? "scaleX(-1)" : "none", marginBottom: "-1px" }}>
-      <svg viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ width:"100%", height:"80px", display:"block" }}>
-        <path d="M0,40 C180,80 360,0 540,40 C720,80 900,0 1080,40 C1260,80 1380,20 1440,40 L1440,80 L0,80 Z" fill={fill} opacity="0.6"/>
-        <path d="M0,50 C240,10 480,70 720,50 C960,30 1200,70 1440,50 L1440,80 L0,80 Z" fill={fill}/>
-      </svg>
+    <div style={{ background: bg, lineHeight: 0, transform: flip ? "scaleX(-1)" : "none", marginBottom: "-1px",
+                  position:"relative", height:"80px", overflow:"hidden" }}>
+      {layer(WAVE_BACK, 0.6, 34, false)}
+      {layer(WAVE_FRONT, 1, 21, true)}
     </div>
   );
 }
