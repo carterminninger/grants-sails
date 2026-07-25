@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Grant's Sails — Seattle Sailing Experiences",
     description: "Sail Puget Sound or Lake Union with USCG-licensed Captain Grant. Wildlife, mountains, and unforgettable Seattle views.",
-    url: "https://grantssails.vercel.app",
+    url: "https://grants-sails.vercel.app",
     siteName: "Grant's Sails",
     locale: "en_US",
     type: "website",
