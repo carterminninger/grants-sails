@@ -267,7 +267,9 @@ function SkyCanvas({ isMobile = false }) {
       horizon = H * HORIZON_F;
       sunX = W * SUN_FX;
       sunY = H * SUN_FY;
-      sunR = Math.min(W * 0.042, H * 0.075);
+      // Sized off the LARGER axis: a width-derived radius collapses the sun to
+      // ~16px on a 390px-wide phone, where it should still read as a sunset.
+      sunR = Math.min(Math.max(W, H) * 0.042, H * 0.085);
 
       skyG = ctx!.createLinearGradient(0, 0, 0, horizon);
       skyG.addColorStop(0, C.sky5); skyG.addColorStop(0.30, C.sky4);
