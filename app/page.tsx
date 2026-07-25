@@ -1240,7 +1240,11 @@ export default function GrantsSails() {
         <SkyCanvas isMobile={isMobile}/>
         <div style={{ position:"relative", zIndex:10, width:"100%", padding:"0 6% 10%", background:"linear-gradient(to top,rgba(11,30,45,0.85) 0%,transparent 100%)" }}>
           <div style={{ animation:"fadeUp 1s ease 0.3s both", maxWidth:"680px" }}>
-            <div style={{ fontSize:"11px", letterSpacing:"0.35em", color:C.seafoam, textTransform:"uppercase", marginBottom:"16px" }}>★ 4.99 · 579+ Reviews · USCG Licensed Captain</div>
+            {/* Shadow, not a scrim: this label sits at the TOP of the hero content
+                block, which is exactly where the block's bottom-anchored gradient
+                has faded to transparent. At 390px it wraps onto the ridgeline,
+                where seafoam-on-mountain has almost no separation. */}
+            <div style={{ fontSize:"11px", letterSpacing:"0.35em", color:C.seafoam, textTransform:"uppercase", marginBottom:"16px", textShadow:"0 1px 14px rgba(6,16,28,0.95), 0 0 5px rgba(6,16,28,0.9)" }}>★ 4.99 · 579+ Reviews · USCG Licensed Captain</div>
             <h1 style={{ fontFamily:"Georgia,serif", fontSize:"clamp(42px,8vw,88px)", fontWeight:900, lineHeight:0.95, letterSpacing:"-0.02em", color:C.white, marginBottom:"20px", textShadow:"0 2px 40px rgba(0,0,0,0.5)" }}>
               Sail Puget Sound<br/><span style={{ color:C.gold }}>with Captain Grant</span>
             </h1>
