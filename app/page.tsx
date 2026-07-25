@@ -250,7 +250,7 @@ function SkyCanvas({ isMobile = false }) {
         lctx.fillRect(OVER + (bx + w.fx * bw) * W - 1.5, bY + w.fy * bH, 3, 4);
       });
 
-      spaceNeedle(lctx, OVER + W * 0.18, horizon, H * 0.235);
+      spaceNeedle(lctx, OVER + W * 0.752, horizon, H * 0.235);
     }
 
     let DPR = 1;
@@ -671,7 +671,7 @@ function SkyCanvas({ isMobile = false }) {
         ctx!.fillRect(OVER + (bx + w.fx * bw) * W - 1.5 - OVER + pxL, bY + w.fy * bH + pyL, 3, 4);
       });
       {
-        const nx = W * 0.18 + pxL, nh = H * 0.235, nb = horizon + pyL;
+        const nx = W * 0.752 + pxL, nh = H * 0.235, nb = horizon + pyL;
         const halo = ctx!.createRadialGradient(nx, nb - nh * 0.855, 0, nx, nb - nh * 0.855, nh * 0.36);
         halo.addColorStop(0, "rgba(255,214,150,0.20)");
         halo.addColorStop(1, "rgba(255,214,150,0)");
