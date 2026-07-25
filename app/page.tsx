@@ -64,15 +64,19 @@ function SkyCanvas({ isMobile = false }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const canvas = ref.current;
+    /* Non-null assertions rather than guard-narrowing: the draw helpers below
+       are function DECLARATIONS (hoisted on purpose, so call order can't bite),
+       and TS does not carry an `if (!x) return` narrowing into a hoisted
+       closure. The runtime guards are kept regardless. */
+    const canvas = ref.current!;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d", { alpha: false });
+    const ctx = canvas.getContext("2d", { alpha: false })!;
     if (!ctx) return;
 
     /* Offscreen layer for everything that never moves. */
     const OVER = 32; // overscan, so parallax never exposes a bare edge
     const land = document.createElement("canvas");
-    const lctx = land.getContext("2d");
+    const lctx = land.getContext("2d")!;
     if (!lctx) return;
 
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
