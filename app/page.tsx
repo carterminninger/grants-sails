@@ -623,30 +623,35 @@ function SkyCanvas({ isMobile = false }) {
         const cyp = cl.y * H + pyS * 0.8;
         const cw = cl.w * W, ch = cl.h * H;
         const near = 1 - Math.min(1, Math.abs(cxp - sx) / (W * 0.55));
-        if (!isMobile) {
-          cl.puffs.forEach(p => {
-            const r = p.r * ch * 1.6;
-            const g = ctx!.createRadialGradient(cxp + p.dx * cw * 0.5, cyp + p.dy * ch - ch * 0.6, 0,
-              cxp + p.dx * cw * 0.5, cyp + p.dy * ch - ch * 0.6, r);
-            g.addColorStop(0, `rgba(48,36,72,${0.30 * cl.a})`);
-            g.addColorStop(1, "rgba(48,36,72,0)");
-            ctx!.fillStyle = g;
-            ctx!.beginPath();
-            ctx!.arc(cxp + p.dx * cw * 0.5, cyp + p.dy * ch - ch * 0.6, r, 0, TAU);
-            ctx!.fill();
-          });
-        }
-        cl.puffs.forEach(p => {
-          const r = p.r * ch * 1.3;
-          const px = cxp + p.dx * cw * 0.5, py = cyp + p.dy * ch;
-          const g = ctx!.createRadialGradient(px, py, 0, px, py, r);
-          g.addColorStop(0, `rgba(255,${Math.round(148 + near * 74)},${Math.round(108 + near * 34)},${(0.20 + near * 0.42) * cl.a})`);
-          g.addColorStop(1, "rgba(255,150,110,0)");
+        /* Puffs are drawn under a horizontal stretch so they composite into flat
+           stratus bands. Circular puffs read as a row of fuzzy dots, which is
+           not a shape a sunset cloud ever takes. The gradient is built AFTER the
+           transform so the falloff stretches with the shape. */
+        const puff = (px: number, py: number, r: number, from: string, to: string) => {
+          ctx!.save();
+          ctx!.translate(px, py);
+          ctx!.scale(2.1, 0.62);
+          const g = ctx!.createRadialGradient(0, 0, 0, 0, 0, r);
+          g.addColorStop(0, from);
+          g.addColorStop(1, to);
           ctx!.fillStyle = g;
           ctx!.beginPath();
-          ctx!.arc(px, py, r, 0, TAU);
+          ctx!.arc(0, 0, r, 0, TAU);
           ctx!.fill();
-        });
+          ctx!.restore();
+        };
+        // shadowed top pass (desktop only — mobile skips the complex fx)
+        if (!isMobile) {
+          cl.puffs.forEach(p => puff(
+            cxp + p.dx * cw * 0.5, cyp + p.dy * ch * 0.5 - ch * 0.5,
+            p.r * ch * 1.5, `rgba(48,36,72,${0.30 * cl.a})`, "rgba(48,36,72,0)"));
+        }
+        // underlit pass — warmer the closer the band sits to the sun
+        cl.puffs.forEach(p => puff(
+          cxp + p.dx * cw * 0.5, cyp + p.dy * ch * 0.5,
+          p.r * ch * 1.25,
+          `rgba(255,${Math.round(148 + near * 74)},${Math.round(108 + near * 34)},${(0.20 + near * 0.42) * cl.a})`,
+          "rgba(255,150,110,0)"));
       });
 
       /* ── land: one blit of the pre-rendered layer ── */
