@@ -137,7 +137,12 @@ function SkyCanvas({ isMobile = false }) {
         windows.push({
           b, fx: (c + 0.5) / 3, fy: (r + 0.62) / 7,
           a: 0.30 + rnd() * 0.50, ph: rnd() * TAU,
-          sp: 0.35 + rnd() * 0.9, tw: rnd() < 0.34,
+          // sp is rad/s, so period = 2*PI/sp: this range is 0.40s-2.51s.
+          // The old 0.35-1.25 gave 5-18s cycles, which is drift, not twinkle.
+          // Phase stays per-window and random, so the lights stay COHERENT —
+          // each window on its own fast cycle. Re-rolling brightness every frame
+          // (the original) is TV static, not a city.
+          sp: 2.5 + rnd() * 13.2, tw: rnd() < 0.60,
         });
       }
     });
