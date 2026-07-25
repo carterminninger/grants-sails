@@ -178,14 +178,17 @@ function SkyCanvas({ isMobile = false }) {
       c.closePath();
       c.fill();
 
-      // the two outer legs — hyperbolic splay, wide at the ground, pinched at the waist
+      // The two outer legs. The curve has to be strongly hyperbolic — flaring
+      // hard near the ground, sweeping in to the waist. It is the tower's most
+      // recognisable line after the saucer, and a shallow curve here reads as a
+      // camera tripod instead.
       c.fillStyle = DARK;
       [-1, 1].forEach(s => {
         c.beginPath();
-        c.moveTo(cx + s * u(0.150), base);
-        c.quadraticCurveTo(cx + s * u(0.074), yy(0.26), cx + s * u(0.030), yy(0.56));
-        c.lineTo(cx + s * u(0.012), yy(0.56));
-        c.quadraticCurveTo(cx + s * u(0.042), yy(0.26), cx + s * u(0.104), base);
+        c.moveTo(cx + s * u(0.155), base);
+        c.quadraticCurveTo(cx + s * u(0.112), yy(0.14), cx + s * u(0.030), yy(0.58));
+        c.lineTo(cx + s * u(0.010), yy(0.58));
+        c.quadraticCurveTo(cx + s * u(0.062), yy(0.14), cx + s * u(0.098), base);
         c.closePath();
         c.fill();
       });
