@@ -161,10 +161,27 @@ function SkyCanvas({ isMobile = false }) {
        leaves it untouched at any normal desktop ratio. */
     function ridgePath(c: CanvasRenderingContext2D, pts: [number, number][], fill: string, ox: number) {
       const relief = Math.min(1, 0.45 + (W / H) * 0.42);
+      // Single height function, so the overscan margins below are placed by the
+      // SAME relief scaling as the ridge they continue. Computing the margins
+      // any other way makes them sit at a different height on portrait ratios,
+      // where relief < 1.
+      const yAt = (py: number) => horizon - (horizon - py * H) * relief;
+      /* The ridge is painted across the full land canvas, INCLUDING the OVER
+         margins on both sides — not just the viewport-width span. The layer is
+         W + OVER*2 wide and is blitted at -OVER + pxL, so ridge content that
+         stopped at ox..ox+W landed on screen at pxL..pxL+W and left an
+         uncovered strip of bare sky up to |pxL| = 15px wide at one edge:
+         mouse right -> gap at the left edge, mouse left -> gap at the right.
+         The margins hold the first and last point's height FLAT rather than
+         extrapolating the slope, which would invent terrain the ridge data
+         does not contain. */
+      const yFirst = yAt(pts[0][1]), yLast = yAt(pts[pts.length - 1][1]);
       c.beginPath();
-      c.moveTo(ox, horizon + 2);
-      pts.forEach(([px, py]) => c.lineTo(ox + px * W, horizon - (horizon - py * H) * relief));
-      c.lineTo(ox + W, horizon + 2);
+      c.moveTo(ox - OVER, horizon + 2);
+      c.lineTo(ox - OVER, yFirst);
+      pts.forEach(([px, py]) => c.lineTo(ox + px * W, yAt(py)));
+      c.lineTo(ox + W + OVER, yLast);
+      c.lineTo(ox + W + OVER, horizon + 2);
       c.closePath();
       c.fillStyle = fill;
       c.fill();
