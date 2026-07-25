@@ -816,37 +816,79 @@ function SkyCanvas({ isMobile = false }) {
         ctx!.fillRect(x, y, 2.5 + u * 14, Math.max(1, 1 + u * 1.4));
       });
 
-      /* ── waves ── */
-      const step = isMobile ? 8 : 3;
-      ([[0.062, 6, 3, 1.2, "30,95,130", 0.68],
-        [0.125, 8, 4, 0.9, "25,80,110", 0.80],
-        [0.205, 10, 5, 0.7, "20,65,95", 0.86],
-        [0.325, 7, 3, 1.4, "15,50,75", 0.92]] as [number, number, number, number, string, number][])
-        .forEach(([yf, amp, period, speed, rgb, a]) => {
-          const yBase = horizon + H * yf + pxW * 0.05;
-          const A = amp + chop * (0.4 + yf * 2);
-          ctx!.beginPath();
-          ctx!.moveTo(0, yBase);
-          for (let x = 0; x <= W; x += step) {
-            ctx!.lineTo(x, yBase
-              + Math.sin((x / W) * period * TAU + t * speed) * A
-              + Math.sin((x / W) * period * 1.6 * TAU + t * speed * 1.3 + 1.2) * A * 0.4);
-          }
-          ctx!.lineTo(W, H); ctx!.lineTo(0, H); ctx!.closePath();
-          ctx!.fillStyle = `rgba(${rgb},${a})`;
-          ctx!.fill();
-        });
+      /* ── wave strips ──
+         Each band is a STRIP running from its own edge down to the NEXT band's
+         edge, not a fill to the bottom of the canvas. The old structure painted
+         the deepest water five times over (base gradient + four fills); this
+         paints it twice, while carrying eleven bands instead of four. Overdraw
+         goes DOWN as band count goes up, which matters because the measured
+         frame cost is rasterisation, not JS.
 
-      /* ── crest lines ── */
-      for (let i = 0; i < 3; i++) {
-        const yb = horizon + H * (0.072 + i * 0.072);
+         Colour is reproduced rather than re-derived. At depth d the old stack
+         resolved to some composite L(d); each strip is drawn at alpha SA with
+         the colour that composites to exactly L(d) over the base gradient, so
+         the depth ramp is preserved by construction. Alpha rather than opaque
+         so the land reflection and the sun glitter underneath still read.
+
+         Band depths follow a power law: dense near the horizon, spread out
+         near the viewer. Combined with the amplitude ramp in surfaceY, the
+         swept regions overlap all the way down, which is what removes the dead
+         zones — the old layout left everything below 0.325H frozen. */
+      const step = isMobile ? 8 : 3;
+      const NB = 11, SA = 0.55;
+      const bandDepth = (k: number) => Math.pow(k / NB, 1.55) * 0.95;
+      const WSTOPS: [number, number[]][] = [
+        [0, [37, 106, 141]], [0.22, [26, 81, 117]], [0.62, [15, 54, 82]], [1, [11, 30, 45]]];
+      const OLDBANDS: [number, number[], number][] = [
+        [0.062 / (1 - HORIZON_F), [30, 95, 130], 0.68],
+        [0.125 / (1 - HORIZON_F), [25, 80, 110], 0.80],
+        [0.205 / (1 - HORIZON_F), [20, 65, 95], 0.86],
+        [0.325 / (1 - HORIZON_F), [15, 50, 75], 0.92]];
+      const baseAt = (d: number) => {
+        let i = 0;
+        while (i < WSTOPS.length - 2 && d > WSTOPS[i + 1][0]) i++;
+        const f = Math.max(0, Math.min(1, (d - WSTOPS[i][0]) / (WSTOPS[i + 1][0] - WSTOPS[i][0])));
+        return WSTOPS[i][1].map((v, j) => v + (WSTOPS[i + 1][1][j] - v) * f);
+      };
+      const stripFill = (d: number) => {
+        const base = baseAt(d);
+        let L = base.slice();
+        for (const [e, c, ba] of OLDBANDS) if (d >= e) L = L.map((v, j) => ba * c[j] + (1 - ba) * v);
+        const c = L.map((v, j) => (v - (1 - SA) * base[j]) / SA);
+        return `rgba(${c.map(v => Math.round(Math.max(0, Math.min(255, v)))).join(",")},${SA})`;
+      };
+
+      for (let k = 1; k <= NB; k++) {
+        const dTop = bandDepth(k);
+        const dBot = k < NB ? bandDepth(k + 1) : null;
+        const sk = Math.max(3, Math.round(step + 5 * dTop));
         ctx!.beginPath();
-        for (let x = 0; x <= W; x += isMobile ? 10 : 5) {
-          const y = yb + Math.sin((x / W) * 5 * TAU + t * (1 + i * 0.3)) * (3 + i * 1.5 + chop * 0.3);
+        ctx!.moveTo(0, surfaceY(0, chop, dTop));
+        for (let x = sk; x < W; x += sk) ctx!.lineTo(x, surfaceY(x, chop, dTop));
+        ctx!.lineTo(W, surfaceY(W, chop, dTop));
+        if (dBot === null) { ctx!.lineTo(W, H); ctx!.lineTo(0, H); }
+        else {
+          ctx!.lineTo(W, surfaceY(W, chop, dBot));
+          for (let x = W - sk; x > 0; x -= sk) ctx!.lineTo(x, surfaceY(x, chop, dBot));
+          ctx!.lineTo(0, surfaceY(0, chop, dBot));
+        }
+        ctx!.closePath();
+        ctx!.fillStyle = stripFill(dBot === null ? (dTop + 1) / 2 : (dTop + dBot) / 2);
+        ctx!.fill();
+      }
+
+      /* ── crest lines: one per strip, so they run to the bottom of the hero
+             instead of stopping at 22% of the water depth as they did ── */
+      for (let k = 1; k <= NB; k++) {
+        const dm = (bandDepth(k) + (k < NB ? bandDepth(k + 1) : 1)) / 2;
+        const sk = Math.max(4, Math.round((isMobile ? 10 : 5) + 6 * dm));
+        ctx!.beginPath();
+        for (let x = 0; x <= W; x += sk) {
+          const y = surfaceY(x, chop, dm);
           if (x === 0) ctx!.moveTo(x, y); else ctx!.lineTo(x, y);
         }
-        ctx!.strokeStyle = `rgba(255,255,255,${0.13 - i * 0.03})`;
-        ctx!.lineWidth = 1.4;
+        ctx!.strokeStyle = `rgba(255,255,255,${(0.115 - dm * 0.055).toFixed(3)})`;
+        ctx!.lineWidth = 1.1 + dm * 1.7;
         ctx!.stroke();
       }
 
