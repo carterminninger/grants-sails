@@ -319,10 +319,31 @@ function SkyCanvas({ isMobile = false }) {
 
     /* Water surface height at x — the boat rides this exact curve, so hull
        and sea never drift out of agreement. */
-    function surfaceY(x: number, chop: number) {
-      return horizon + H * 0.058
-        + Math.sin((x / W) * 3 * TAU + t * 1.2) * (6 + chop)
-        + Math.sin((x / W) * 4.8 * TAU + t * 1.56 + 1.2) * (2.4 + chop * 0.4);
+    /* ONE wave function for the entire surface. `d` is depth as a fraction of
+       the water plane: 0 = horizon, 1 = bottom of the hero. The wave strips,
+       the crest lines, the boat and the orca all read from this same function,
+       so coherence is structural — the hull cannot float above or sink below
+       the water it is sitting in, whatever the bands are doing.
+
+       Perspective is built in: near the horizon the waves are small, closely
+       spaced and quick; near the viewer they are large, broad and slow.
+       Three harmonics rather than two, and `dr` gives every depth its own slow
+       phase drift at a rate incommensurate with the carrier, so the pattern
+       never lines back up and there is no findable loop. */
+    const BOAT_D = 0.058 / (1 - HORIZON_F);      // unchanged boat waterline
+    function surfaceY(x: number, chop: number, d: number = BOAT_D) {
+      const yBase = horizon + d * (H - horizon);
+      const amp = H * (0.0025 + 0.032 * Math.pow(d, 1.15)) + chop * (0.3 + d * 1.2);
+      const f = 1.8 + 9 / (1 + 5 * d);           // cycles across W: ~10.8 -> ~3.3
+      const sp = 1.5 - 0.8 * d;                  // near water travels slower
+      const ph = d * 7.3;
+      const dr = tsec * (0.013 + 0.021 * ((d * 7.7) % 1));
+      const u = x / W;
+      return yBase + amp * (
+          Math.sin(u * f * TAU + t * sp + ph + dr)
+        + 0.45 * Math.sin(u * f * 1.9 * TAU + t * sp * 1.35 + ph * 2.1 + dr * 1.7)
+        + 0.22 * Math.sin(u * f * 3.3 * TAU + t * sp * 0.7 + ph * 3.7 - dr * 1.3)
+      ) / 1.67;
     }
 
     function paintOrca(c: CanvasRenderingContext2D, L: number, rim: boolean) {
