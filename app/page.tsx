@@ -92,7 +92,7 @@ function SkyCanvas({ isMobile = false }) {
     /* ── reactivity: pointer position + scroll velocity (locked standard —
           a time-only canvas is an anti-pattern) ── */
     const ptr = { x: 0, y: 0, tx: 0, ty: 0 };
-    let lastScroll = window.scrollY, rawScroll = 0, scrollVel = 0, scrollDepth = 0;
+    let lastScroll = window.scrollY, rawScroll = 0, scrollVel = 0;
 
     /* ── persistent scene objects, generated once ── */
     const stars = Array.from({ length: isMobile ? 26 : 74 }, () => ({
