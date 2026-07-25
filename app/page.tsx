@@ -974,7 +974,6 @@ function SkyCanvas({ isMobile = false }) {
       const y = window.scrollY;
       rawScroll += y - lastScroll;
       lastScroll = y;
-      scrollDepth = y;
     };
     const onMove = (e: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
