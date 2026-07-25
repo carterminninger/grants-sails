@@ -836,39 +836,58 @@ function SkyCanvas({ isMobile = false }) {
           ctx!.scale(0.92 + lift * 0.22, 0.92 + lift * 0.22);
           paintOrca(ctx!, oL, lift > 0.25);
           ctx!.restore();
-          // water sheeting off the body
-          if (lift > 0.12) {
-            for (let i = 0; i < (isMobile ? 6 : 14); i++) {
-              const a2 = (i / 14) * TAU;
-              const rr = oL * (0.5 + (i % 5) * 0.22) * lift;
+          // Water sheeting off the body. It falls VERTICALLY in screen space —
+          // gravity does not care how the animal is rotated — and trails below
+          // rather than ringing the body, which is what made it read as bubbles.
+          if (lift > 0.10) {
+            const n = isMobile ? 8 : 20;
+            for (let i = 0; i < n; i++) {
+              const j = i * 6151;
+              const along = ((j % 53) / 53) * 1.7 - 0.85;
+              const fall = (j % 31) / 31;
+              const dxs = along * oL * 0.9 + ((j % 19) / 19 - 0.5) * oL * 0.3;
+              const dys = oL * 0.25 + fall * oL * 1.7 * (1.15 - lift);
               ctx!.beginPath();
-              ctx!.arc(px2 + Math.cos(a2) * rr * 1.6, py2 + Math.sin(a2) * rr * 0.7 + oL * 0.3,
-                Math.max(0.8, 1.4 + lift * 2.2), 0, TAU);
-              ctx!.fillStyle = `rgba(214,242,250,${0.45 * lift})`;
+              ctx!.arc(px2 + dxs, py2 + dys, Math.max(0.6, (1.5 - fall) * (0.7 + lift)), 0, TAU);
+              ctx!.fillStyle = `rgba(220,244,252,${0.40 * lift * (1 - fall * 0.7)})`;
               ctx!.fill();
             }
           }
         } else if (c < 7.6) {                            // splash + settling rings
           const p = (c - 5.4) / 2.2;
           const ease = 1 - p;
+
+          // foam mound at the entry point, collapsing
+          ctx!.beginPath();
+          ctx!.ellipse(oX, oW, oL * 0.55 * (1 - p * 0.5), oL * 0.20 * ease, 0, 0, TAU);
+          ctx!.fillStyle = `rgba(232,249,255,${0.42 * ease})`;
+          ctx!.fill();
+
+          // Rings kept under ~2.5 body-lengths. At 4x they read as a bullseye
+          // rather than as water closing over an animal.
           for (let i = 0; i < 3; i++) {
-            const rr = oL * (0.6 + p * 3.4 + i * 0.6);
+            const rr = oL * (0.35 + p * 1.5 + i * 0.35);
             ctx!.beginPath();
-            ctx!.ellipse(oX, oW, rr, rr * 0.24, 0, 0, TAU);
-            ctx!.strokeStyle = `rgba(226,246,252,${0.30 * ease * (1 - i * 0.28)})`;
-            ctx!.lineWidth = 1.4;
+            ctx!.ellipse(oX, oW, rr, rr * 0.18, 0, 0, TAU);
+            ctx!.strokeStyle = `rgba(226,246,252,${0.24 * ease * (1 - i * 0.28)})`;
+            ctx!.lineWidth = 1.3;
             ctx!.stroke();
           }
-          for (let i = 0; i < (isMobile ? 8 : 20); i++) {
-            const ang = Math.PI + (i / 20) * Math.PI;
-            const spd = 0.55 + ((i * 37) % 13) / 13 * 0.9;
-            const age = p * 2.2;
-            const dx2 = Math.cos(ang) * spd * oL * 2.6 * age;
-            const dy2 = Math.sin(ang) * spd * oL * 3.0 * age + 26 * age * age;
-            if (dy2 > oL * 0.6) continue;
+
+          // Staggered launch + per-droplet speed, angle and size. Firing them
+          // all on the same clock is what collapsed the spray into one blob.
+          for (let i = 0; i < (isMobile ? 10 : 26); i++) {
+            const j = i * 7919;
+            const ang = Math.PI + 0.12 + ((j % 97) / 97) * (Math.PI - 0.24);
+            const spd = 0.45 + ((j % 61) / 61) * 1.15;
+            const age = p * 2.4 - ((j % 23) / 23) * 0.35;
+            if (age <= 0) continue;
+            const dx2 = Math.cos(ang) * spd * oL * 2.2 * age;
+            const dy2 = Math.sin(ang) * spd * oL * 2.4 * age + 30 * age * age;
+            if (dy2 > oL * 0.5) continue;
             ctx!.beginPath();
-            ctx!.arc(oX + dx2, oW + dy2, Math.max(0.8, 2.4 * ease), 0, TAU);
-            ctx!.fillStyle = `rgba(236,250,255,${0.55 * ease})`;
+            ctx!.arc(oX + dx2, oW + dy2, Math.max(0.7, (1.9 - (j % 17) / 17) * ease), 0, TAU);
+            ctx!.fillStyle = `rgba(236,250,255,${0.5 * ease})`;
             ctx!.fill();
           }
         }
