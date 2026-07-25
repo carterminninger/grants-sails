@@ -781,6 +781,20 @@ function SkyCanvas({ isMobile = false }) {
         ctx!.stroke();
       }
 
+      /* ── boat reflection: ON TOP of the wave fills, not under them.
+           Mirrored about the waterline and squashed; the crest lines drawn
+           above already break it up, so it sits in the water rather than on it. */
+      ctx!.save();
+      ctx!.beginPath();
+      ctx!.rect(0, horizon, W, H - horizon);
+      ctx!.clip();
+      ctx!.globalAlpha = 0.17;
+      ctx!.translate(bX, bY);
+      ctx!.scale(flip * squash, -0.5);
+      ctx!.rotate(heel + Math.atan(slope) * 0.5);
+      paintBoat(ctx!, bL, sunSide, belly, true);
+      ctx!.restore();
+
       /* ── the sailboat ── */
       ctx!.save();
       ctx!.translate(bX, bY);
