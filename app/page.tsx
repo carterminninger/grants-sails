@@ -730,29 +730,21 @@ function SkyCanvas({ isMobile = false }) {
       const belly = 0.10 + Math.sin(tsec * 0.9) * 0.028;
       const sunSide = flip * (sunX - bX) >= 0 ? 1 : -1;
 
-      /* ── boat reflection, under the waves ── */
-      ctx!.save();
-      ctx!.beginPath();
-      ctx!.rect(0, horizon, W, H - horizon);
-      ctx!.clip();
-      ctx!.globalAlpha = 0.22;
-      ctx!.translate(bX, bY);
-      ctx!.scale(flip * squash, -0.52);
-      ctx!.rotate(heel + Math.atan(slope) * 0.5);
-      paintBoat(ctx!, bL, sunSide, belly, true);
-      ctx!.restore();
-
-      /* ── sun glitter: a widening cone of discrete glints ── */
+      /* ── sun glitter: a widening cone of discrete glints ──
+         pow(u,1.35) rather than 1.7: the steeper curve packed nearly every
+         glint against the horizon and left the near water bare. Near-field
+         alpha also falls off far more gently now, so the path reads as one
+         continuous column instead of a bright band with nothing under it. */
       const gx = sx + pxW * 0.4;
       glints.forEach(g => {
         const u = g.u;
-        const y = horizon + Math.pow(u, 1.7) * (H - horizon);
+        const y = horizon + Math.pow(u, 1.35) * (H - horizon);
         const spread = W * 0.018 + u * W * 0.19;
         const x = gx + g.o * 2 * spread + Math.sin(tsec * 0.5 + g.ph) * spread * 0.06;
-        const a = (0.62 - u * 0.42) * (0.35 + 0.65 * Math.abs(Math.sin(tsec * g.sp + g.ph)));
+        const a = (0.55 - u * 0.20) * (0.30 + 0.70 * Math.abs(Math.sin(tsec * g.sp + g.ph)));
         if (a < 0.04) return;
         ctx!.fillStyle = `rgba(255,${Math.round(214 - u * 40)},${Math.round(126 - u * 40)},${a})`;
-        ctx!.fillRect(x, y, 3 + u * 20, Math.max(1, 1 + u * 1.8));
+        ctx!.fillRect(x, y, 2.5 + u * 14, Math.max(1, 1 + u * 1.4));
       });
 
       /* ── waves ── */
