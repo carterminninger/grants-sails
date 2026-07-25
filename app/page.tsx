@@ -137,12 +137,17 @@ function SkyCanvas({ isMobile = false }) {
         windows.push({
           b, fx: (c + 0.5) / 3, fy: (r + 0.62) / 7,
           a: 0.30 + rnd() * 0.50, ph: rnd() * TAU,
-          // sp is rad/s, so period = 2*PI/sp: this range is 0.40s-2.51s.
-          // The old 0.35-1.25 gave 5-18s cycles, which is drift, not twinkle.
+          // sp is rad/s, so period = 2*PI/sp: this range is 0.24s-1.26s.
+          // History: 0.35-1.25 gave 5-18s cycles (drift, not twinkle); then
+          // 2.5-15.7 gave 0.40-2.51s, which glowed but was still slow.
+          // The fast end stops at sp 26 = 0.24s, just inside the ~0.2s floor —
+          // past that it reads as strobing, which is the TV-static failure mode
+          // we deliberately avoided. The 5.2x spread is deliberate too: a
+          // uniform rate looks mechanical, whereas a mix of fast scintillators
+          // and slower ones reads as a real city.
           // Phase stays per-window and random, so the lights stay COHERENT —
-          // each window on its own fast cycle. Re-rolling brightness every frame
-          // (the original) is TV static, not a city.
-          sp: 2.5 + rnd() * 13.2, tw: rnd() < 0.60,
+          // each window on its own cycle, never re-rolled per frame.
+          sp: 5.0 + rnd() * 21.0, tw: rnd() < 0.60,
         });
       }
     });
