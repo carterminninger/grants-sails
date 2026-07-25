@@ -593,14 +593,10 @@ function SkyCanvas({ isMobile = false }) {
         ctx!.arc(sx, sy, r, 0, TAU);
         ctx!.fill();
       });
-      // sun pillar
-      const pg = ctx!.createLinearGradient(sx, sy - H * 0.26, sx, sy + H * 0.04);
-      pg.addColorStop(0, "rgba(255,196,124,0)");
-      pg.addColorStop(0.6, `rgba(255,212,146,${0.09 + 0.03 * Math.sin(tsec * 0.6)})`);
-      pg.addColorStop(1, "rgba(255,196,124,0)");
-      ctx!.fillStyle = pg;
-      ctx!.fillRect(sx - sunR * 0.55, sy - H * 0.26, sunR * 1.1, H * 0.30);
-
+      /* Chanel pass: the sun pillar was cut here. It shared an origin with the
+         crepuscular rays and the bloom, so at 0.09 alpha it was doing nothing
+         those two were not already doing louder — one gradient per frame for an
+         effect no one could point to. */
       ctx!.save();
       ctx!.translate(sx, sy);
       ctx!.scale(1, 0.90);   // a low sun is squashed by refraction — real, and it reads
