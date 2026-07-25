@@ -20,186 +20,937 @@ const C = {
   white:   "#ffffff",
 };
 
-/* ─── ANIMATED SUNSET SKY + WATER CANVAS ─────────────────────── */
+/* ─── SCENE GEOMETRY ──────────────────────────────────────────────
+   Every coordinate is a fraction of canvas W/H so the composition holds
+   at any aspect ratio. Two rules to respect when editing:
+   1. SUN_FX must line up with the notch in RIDGE_FAR, or the mountains
+      occlude the sun (that was the bug in the first version).
+   2. RIDGE_NEAR must sit BELOW RIDGE_FAR at every x — it is the closer
+      ridge, so a crossing reads as broken depth.                        */
+const TAU = Math.PI * 2;
+const SUN_FX = 0.70;
+const SUN_FY = 0.435;
+const HORIZON_F = 0.52;
+
+/* Olympics. The V at x≈0.70 is the saddle the sun sets into. */
+const RIDGE_FAR: [number, number][] = [
+  [0, 0.505], [0.03, 0.415], [0.075, 0.345], [0.115, 0.295], [0.155, 0.335],
+  [0.20, 0.265], [0.25, 0.315], [0.30, 0.250], [0.35, 0.305], [0.40, 0.275],
+  [0.45, 0.325], [0.50, 0.285], [0.545, 0.330], [0.59, 0.315], [0.63, 0.400],
+  [0.665, 0.455], [0.70, 0.480], [0.735, 0.455], [0.775, 0.400], [0.82, 0.355],
+  [0.87, 0.385], [0.93, 0.415], [1, 0.455],
+];
+const RIDGE_NEAR: [number, number][] = [
+  [0, 0.515], [0.06, 0.462], [0.12, 0.432], [0.18, 0.408], [0.24, 0.442],
+  [0.30, 0.418], [0.36, 0.452], [0.42, 0.432], [0.48, 0.462], [0.54, 0.442],
+  [0.60, 0.472], [0.66, 0.492], [0.72, 0.500], [0.78, 0.478], [0.84, 0.462],
+  [0.90, 0.478], [0.95, 0.492], [1, 0.505],
+];
+/* Downtown cluster: x, width, height — fractions. */
+const SKYLINE: [number, number, number][] = [
+  [0.780, 0.025, 0.140], [0.808, 0.018, 0.170], [0.830, 0.022, 0.200],
+  [0.855, 0.028, 0.160], [0.886, 0.020, 0.225], [0.909, 0.024, 0.180],
+  [0.936, 0.018, 0.150], [0.957, 0.026, 0.120], [0.985, 0.018, 0.100],
+];
+
+/* ─── ANIMATED SUNSET SKY + WATER CANVAS ─────────────────────────
+   Layering, back to front: sky → stars → god rays → sun → clouds →
+   land (pre-rendered) → afterglow bleed → horizon haze → water →
+   reflections → sun glitter → waves → boat → orca → gulls → vignette.
+
+   Static geometry (ridges, skyline, Space Needle) is rendered once to an
+   offscreen layer and blitted, so only living things redraw each frame.  */
 function SkyCanvas({ isMobile = false }) {
   const ref = useRef<HTMLCanvasElement>(null);
+
   useEffect(() => {
-    const canvas = ref.current!;
-    const ctx = canvas.getContext("2d")!;
-    let raf: number, t = 0;
-    const resize = () => {
-      canvas.width  = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-    const starCount = isMobile ? 20 : 60;
-    const stars = Array.from({ length: starCount }, () => ({
-      x: Math.random(), y: Math.random() * 0.45,
-      r: Math.random() * 1.2 + 0.3,
-      phase: Math.random() * Math.PI * 2,
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    /* Offscreen layer for everything that never moves. */
+    const OVER = 32; // overscan, so parallax never exposes a bare edge
+    const land = document.createElement("canvas");
+    const lctx = land.getContext("2d");
+    if (!lctx) return;
+
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const rnd = Math.random;
+
+    let W = 0, H = 0, horizon = 0, sunX = 0, sunY = 0, sunR = 0;
+    let raf = 0, t = 0, tsec = 0, lastFrame = 0;
+    let onScreen = true, looping = false;
+    let skyG: CanvasGradient | null = null;
+    let waterG: CanvasGradient | null = null;
+    let vigG: CanvasGradient | null = null;
+
+    /* ── reactivity: pointer position + scroll velocity (locked standard —
+          a time-only canvas is an anti-pattern) ── */
+    const ptr = { x: 0, y: 0, tx: 0, ty: 0 };
+    let lastScroll = window.scrollY, rawScroll = 0, scrollVel = 0, scrollDepth = 0;
+
+    /* ── persistent scene objects, generated once ── */
+    const stars = Array.from({ length: isMobile ? 26 : 74 }, () => ({
+      x: rnd(), y: rnd() * 0.42, r: rnd() * 1.1 + 0.35,
+      ph: rnd() * TAU, sp: 0.5 + rnd() * 1.2,
     }));
-    const gullCount = isMobile ? 2 : 6;
-    const gulls = Array.from({ length: gullCount }, (_, i) => ({
-      x: 0.1 + i * 0.14 + Math.random() * 0.05,
-      y: 0.12 + Math.random() * 0.12,
-      speed: 0.00015 + Math.random() * 0.0001,
-      size: 3 + Math.random() * 3,
-      phase: Math.random() * Math.PI * 2,
+
+    /* Standard: birds → 2 on mobile. */
+    const gulls = Array.from({ length: isMobile ? 2 : 7 }, () => ({
+      x: rnd() * 1.2, y: 0.09 + rnd() * 0.17,
+      sp: 0.010 + rnd() * 0.017, size: 3 + rnd() * 4.5,
+      ph: rnd() * TAU, glide: 0.3 + rnd() * 0.5,
     }));
-    const draw = () => {
-      t += 0.005;
-      const W = canvas.width, H = canvas.height;
-      const horizon = H * 0.52;
-      const sky = ctx.createLinearGradient(0, 0, 0, horizon);
-      sky.addColorStop(0, C.sky5); sky.addColorStop(0.3, C.sky4);
-      sky.addColorStop(0.55, C.sky3); sky.addColorStop(0.75, C.sky2);
-      sky.addColorStop(0.88, C.sky1); sky.addColorStop(1, C.gold);
-      ctx.fillStyle = sky;
-      ctx.fillRect(0, 0, W, horizon);
-      stars.forEach(s => {
-        const alpha = Math.max(0, 0.6 - s.y * 1.8) * (0.5 + Math.sin(t * 0.8 + s.phase) * 0.5);
-        if (alpha < 0.02) return;
-        ctx.beginPath();
-        ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,248,220,${alpha})`;
-        ctx.fill();
-      });
-      const sunX = W * 0.72, sunY = horizon * 0.78, sunR = W * 0.045;
-      [[sunR * 5, 0.06], [sunR * 3.5, 0.1], [sunR * 2, 0.2]].forEach(([r, a]) => {
-        const g = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, r as number);
-        g.addColorStop(0, `rgba(255,220,100,${a})`);
-        g.addColorStop(1, "transparent");
-        ctx.fillStyle = g; ctx.beginPath();
-        ctx.arc(sunX, sunY, r as number, 0, Math.PI * 2); ctx.fill();
-      });
-      const disc = ctx.createRadialGradient(sunX - sunR * 0.2, sunY - sunR * 0.2, 0, sunX, sunY, sunR);
-      disc.addColorStop(0, "#fffde0"); disc.addColorStop(0.5, "#ffe484"); disc.addColorStop(1, "#ffb347");
-      ctx.fillStyle = disc; ctx.beginPath(); ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2); ctx.fill();
-      const water = ctx.createLinearGradient(0, horizon, 0, H);
-      water.addColorStop(0, "#1e5f82"); water.addColorStop(0.3, "#174f6e");
-      water.addColorStop(0.7, "#0f3652"); water.addColorStop(1, C.deep);
-      ctx.fillStyle = water; ctx.fillRect(0, horizon, W, H - horizon);
-      const shimCount = isMobile ? 8 : 18;
-      for (let i = 0; i < shimCount; i++) {
-        const yOff = horizon + (i * (H - horizon) / shimCount);
-        const ww = (W * 0.06) * (1 - i / 22) * (0.8 + Math.sin(t * 1.5 + i * 0.4) * 0.2);
-        const alpha = (0.5 - i / 36) * (0.7 + Math.sin(t + i) * 0.3);
-        if (alpha <= 0) continue;
-        const sg = ctx.createLinearGradient(sunX - ww, yOff, sunX + ww, yOff);
-        sg.addColorStop(0, "transparent"); sg.addColorStop(0.5, `rgba(255,210,80,${alpha})`); sg.addColorStop(1, "transparent");
-        ctx.fillStyle = sg; ctx.fillRect(sunX - ww, yOff, ww * 2, (H - horizon) / 16);
-      }
-      const drawWave = (yBase: number, amp: number, period: number, speed: number, color: string, alpha: number) => {
-        ctx.beginPath(); ctx.moveTo(0, yBase);
-        for (let x = 0; x <= W; x += isMobile ? 8 : 3) {
-          const y = yBase + Math.sin((x / W) * period * Math.PI * 2 + t * speed) * amp
-            + Math.sin((x / W) * (period * 1.6) * Math.PI * 2 + t * speed * 1.3 + 1.2) * (amp * 0.4);
-          ctx.lineTo(x, y);
-        }
-        ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-        ctx.fillStyle = color.replace(")", `,${alpha})`).replace("rgb", "rgba"); ctx.fill();
+
+    const clouds = Array.from({ length: isMobile ? 4 : 7 }, () => {
+      const n = 5 + Math.floor(rnd() * 4);
+      return {
+        x: rnd() * 1.3, y: 0.09 + rnd() * 0.27,
+        w: 0.15 + rnd() * 0.24, h: 0.018 + rnd() * 0.030,
+        sp: 0.004 + rnd() * 0.007, a: 0.30 + rnd() * 0.40,
+        puffs: Array.from({ length: n }, (_, j) => ({
+          dx: (j / (n - 1) - 0.5) * 1.9 + (rnd() - 0.5) * 0.28,
+          dy: (rnd() - 0.5) * 0.55,
+          r: 0.5 + rnd() * 0.6,
+        })),
       };
-      drawWave(horizon + H * 0.06, 6, 3, 1.2, "rgb(30,95,130)", 0.7);
-      drawWave(horizon + H * 0.12, 8, 4, 0.9, "rgb(25,80,110)", 0.8);
-      drawWave(horizon + H * 0.20, 10, 5, 0.7, "rgb(20,65,95)", 0.85);
-      drawWave(horizon + H * 0.32, 7, 3, 1.4, "rgb(15,50,75)", 0.9);
-      [horizon + H*0.07, horizon + H*0.14, horizon + H*0.23].forEach((yb, i) => {
-        ctx.beginPath();
-        for (let x = 0; x <= W; x += 4) {
-          const y = yb + Math.sin((x/W)*5*Math.PI*2 + t*(1+i*0.3)) * (3+i*1.5);
-          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.strokeStyle = `rgba(255,255,255,${0.12 - i*0.03})`; ctx.lineWidth = 1.5; ctx.stroke();
-      });
-      const drawMountains = (peaks: number[][], color: string, alpha: number) => {
-        ctx.beginPath(); ctx.moveTo(0, horizon);
-        peaks.forEach(([px, py]) => ctx.lineTo(px * W, py * H));
-        ctx.lineTo(W, horizon); ctx.closePath();
-        ctx.fillStyle = `rgba(${color},${alpha})`; ctx.fill();
-      };
-      drawMountains([[0,0.52],[0.04,0.40],[0.10,0.33],[0.17,0.28],[0.22,0.32],[0.30,0.25],[0.38,0.31],[0.44,0.27],[0.50,0.32],[0.56,0.26],[0.62,0.34],[0.68,0.30],[0.72,0.36],[0.78,0.38],[0.85,0.40],[0.92,0.43],[1.0,0.48]], "15,35,60", 0.55);
-      drawMountains([[0,0.52],[0.05,0.44],[0.12,0.40],[0.20,0.36],[0.28,0.39],[0.36,0.35],[0.43,0.40],[0.50,0.37],[0.58,0.42],[0.65,0.38],[0.72,0.44],[0.80,0.46],[1.0,0.52]], "12,28,48", 0.7);
-      const snX = W * 0.18, snBase = horizon, snH = H * 0.22;
-      ctx.fillStyle = "rgba(8,20,35,0.92)";
-      [[-0.022,0],[0,-0.008],[0.022,0]].forEach(([dx]) => {
-        ctx.beginPath(); ctx.moveTo(snX + dx * W, snBase); ctx.lineTo(snX, snBase - snH * 0.25);
-        ctx.strokeStyle = "rgba(8,20,35,0.92)"; ctx.lineWidth = W * 0.004; ctx.stroke();
-      });
-      ctx.fillStyle = "rgba(8,20,35,0.92)";
-      ctx.fillRect(snX - W*0.004, snBase - snH * 0.85, W*0.008, snH * 0.6);
-      ctx.beginPath(); ctx.ellipse(snX, snBase - snH * 0.72, W * 0.022, H * 0.018, 0, 0, Math.PI*2); ctx.fill();
-      ctx.fillRect(snX - W*0.002, snBase - snH, W*0.004, snH * 0.28);
-      ctx.beginPath(); ctx.moveTo(snX, snBase - snH); ctx.lineTo(snX - W*0.003, snBase - snH * 0.88); ctx.lineTo(snX + W*0.003, snBase - snH * 0.88); ctx.closePath(); ctx.fill();
-      const bldgs: number[][] = [[0.78,0.025,0.14],[0.808,0.018,0.17],[0.83,0.022,0.20],[0.855,0.028,0.16],[0.886,0.020,0.22],[0.909,0.024,0.18],[0.936,0.018,0.15],[0.957,0.026,0.12],[0.985,0.018,0.10]];
-      bldgs.forEach(([bx, bw, bh]) => {
-        const bH = H * bh, bY = horizon - bH;
-        ctx.fillStyle = "rgba(8,18,32,0.88)"; ctx.fillRect(bx * W, bY, bw * W, bH + 2);
-        if (bh > 0.18) { ctx.fillStyle = "rgba(8,18,32,0.9)"; ctx.fillRect((bx + bw/2) * W - 1, bY - H*0.03, 2, H*0.03); }
-        for (let row = 0; row < 6; row++) for (let col = 0; col < 3; col++) {
-          if (Math.random() > 0.45) { ctx.fillStyle = `rgba(255,240,180,${0.3 + Math.random()*0.4})`; ctx.fillRect(bx*W + col*(bw*W/3)+2, bY + row*(bH/7)+4, 3, 4); }
-        }
-      });
-      if (!isMobile) {
-        const whaleCycle = (t % 8);
-        if (whaleCycle < 3) {
-          const progress = whaleCycle / 3, arc = Math.sin(progress * Math.PI);
-          const wX = W * 0.42, wY = horizon + H * 0.08 - arc * H * 0.12;
-          const wScale = 0.7 + arc * 0.3;
-          ctx.save(); ctx.translate(wX, wY); ctx.scale(wScale, wScale); ctx.rotate(-0.3 + arc * 0.4);
-          const wW = W * 0.06, wH = H * 0.06;
-          ctx.beginPath(); ctx.ellipse(0, 0, wW, wH * 0.45, 0, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(15,30,50,0.92)"; ctx.fill();
-          ctx.beginPath(); ctx.ellipse(0, wH * 0.15, wW * 0.6, wH * 0.22, 0, 0, Math.PI * 2);
-          ctx.fillStyle = "rgba(200,220,230,0.5)"; ctx.fill();
-          ctx.beginPath(); ctx.moveTo(-wW*0.7, wH*0.1); ctx.quadraticCurveTo(-wW*1.1,-wH*0.3,-wW*0.9,-wH*0.5);
-          ctx.quadraticCurveTo(-wW*0.7,-wH*0.2,-wW*0.5,-wH*0.05); ctx.quadraticCurveTo(-wW*0.7,wH*0.3,-wW*0.7,wH*0.1);
-          ctx.fillStyle = "rgba(12,25,45,0.92)"; ctx.fill();
-          ctx.beginPath(); ctx.moveTo(wW*0.1,-wH*0.1); ctx.lineTo(wW*0.35,-wH*0.55); ctx.lineTo(wW*0.5,-wH*0.1); ctx.fill();
-          if (arc > 0.05 && arc < 0.9) {
-            for (let s = 0; s < 8; s++) {
-              const sa = (s/8)*Math.PI, sr = wW*0.4*arc;
-              ctx.beginPath(); ctx.arc(Math.cos(sa)*sr*1.5+wW*0.3, wH*0.4+Math.sin(sa)*sr*0.5, 2+arc*3, 0, Math.PI*2);
-              ctx.fillStyle = `rgba(180,230,240,${0.5*arc})`; ctx.fill();
-            }
-          }
-          ctx.restore();
-        }
-        const boatX = W * (0.35 + Math.sin(t * 0.18) * 0.008);
-        const boatY = horizon + H * 0.04 + Math.sin(t * 0.5) * 3;
-        const boatW = W * 0.07, boatH = H * 0.04, mastH = H * 0.16;
-        ctx.save(); ctx.translate(boatX, boatY); ctx.rotate(Math.sin(t * 0.5) * 0.04);
-        ctx.beginPath(); ctx.moveTo(-boatW/2, 0);
-        ctx.quadraticCurveTo(-boatW*0.3, boatH, 0, boatH*1.1);
-        ctx.quadraticCurveTo(boatW*0.3, boatH, boatW*0.45, 0); ctx.closePath();
-        ctx.fillStyle = "rgba(12,24,42,0.95)"; ctx.fill();
-        ctx.strokeStyle = "rgba(80,140,170,0.5)"; ctx.lineWidth = 1; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -mastH);
-        ctx.strokeStyle = "rgba(20,40,65,0.9)"; ctx.lineWidth = 2; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, -mastH); ctx.lineTo(boatW*0.85, -mastH*0.1); ctx.lineTo(0, 0); ctx.closePath();
-        const sailGrad = ctx.createLinearGradient(0, -mastH, boatW*0.85, 0);
-        sailGrad.addColorStop(0, "rgba(255,248,235,0.95)"); sailGrad.addColorStop(1, "rgba(240,220,180,0.85)");
-        ctx.fillStyle = sailGrad; ctx.fill();
-        ctx.beginPath(); ctx.moveTo(0,-mastH*0.85); ctx.lineTo(-boatW*0.55,-mastH*0.05); ctx.lineTo(0,0); ctx.closePath();
-        ctx.fillStyle = "rgba(255,248,235,0.8)"; ctx.fill();
-        ctx.restore();
-        gulls.forEach(g => {
-          g.x = (g.x + g.speed) % 1.15;
-          const gx = g.x * W, gy = g.y * H + Math.sin(t * 1.2 + g.phase) * 6;
-          const flap = Math.sin(t * 4 + g.phase);
-          ctx.beginPath();
-          ctx.moveTo(gx - g.size, gy + flap * g.size * 0.4);
-          ctx.quadraticCurveTo(gx - g.size*0.4, gy - g.size*0.5, gx, gy);
-          ctx.quadraticCurveTo(gx + g.size*0.4, gy - g.size*0.5, gx + g.size, gy + flap * g.size * 0.4);
-          ctx.strokeStyle = "rgba(255,248,230,0.7)"; ctx.lineWidth = 1.2; ctx.stroke();
+    });
+
+    /* Sun glitter: discrete glints on a widening cone, not gradient bars.
+       Positions are stable and only the sparkle animates. */
+    const glints = Array.from({ length: isMobile ? 30 : 110 }, () => ({
+      u: rnd(), o: rnd() - 0.5, ph: rnd() * TAU, sp: 1.1 + rnd() * 2.8,
+    }));
+
+    /* Windows: a fixed set. Steady ones bake into the land layer; only the
+       ~1/3 marked `tw` redraw, so this is a real twinkle instead of 162
+       fillRects re-rolling Math.random() every single frame. */
+    const windows = [] as { b: number; fx: number; fy: number; a: number; ph: number; sp: number; tw: boolean }[];
+    SKYLINE.forEach((_, b) => {
+      for (let r = 0; r < 7; r++) for (let c = 0; c < 3; c++) {
+        if (rnd() > 0.60) continue;
+        windows.push({
+          b, fx: (c + 0.5) / 3, fy: (r + 0.62) / 7,
+          a: 0.30 + rnd() * 0.50, ph: rnd() * TAU,
+          sp: 0.35 + rnd() * 0.9, tw: rnd() < 0.34,
         });
       }
-      raf = requestAnimationFrame(draw);
+    });
+
+    /* ── helpers (function declarations: hoisted, so ordering can't bite) ── */
+
+    function ridgePath(c: CanvasRenderingContext2D, pts: [number, number][], fill: string, ox: number) {
+      c.beginPath();
+      c.moveTo(ox, horizon + 2);
+      pts.forEach(([px, py]) => c.lineTo(ox + px * W, py * H));
+      c.lineTo(ox + W, horizon + 2);
+      c.closePath();
+      c.fillStyle = fill;
+      c.fill();
+    }
+
+    /* Space Needle, built from the real tower's proportions: 605 ft overall,
+       138 ft top-house diameter, waist at ~52%, top house 78–90%, spire above.
+       Drawn as separate legs (not one blob) so the tripod reads as a tripod. */
+    function spaceNeedle(c: CanvasRenderingContext2D, cx: number, base: number, hgt: number) {
+      const u = (f: number) => f * hgt;
+      const yy = (f: number) => base - f * hgt;
+      const DARK = "rgba(7,16,29,0.94)";
+
+      // centre leg, set back for depth
+      c.fillStyle = "rgba(6,14,26,0.72)";
+      c.beginPath();
+      c.moveTo(cx - u(0.052), base);
+      c.quadraticCurveTo(cx - u(0.030), yy(0.30), cx - u(0.014), yy(0.55));
+      c.lineTo(cx + u(0.014), yy(0.55));
+      c.quadraticCurveTo(cx + u(0.030), yy(0.30), cx + u(0.052), base);
+      c.closePath();
+      c.fill();
+
+      // the two outer legs — hyperbolic splay, wide at the ground, pinched at the waist
+      c.fillStyle = DARK;
+      [-1, 1].forEach(s => {
+        c.beginPath();
+        c.moveTo(cx + s * u(0.150), base);
+        c.quadraticCurveTo(cx + s * u(0.074), yy(0.26), cx + s * u(0.030), yy(0.56));
+        c.lineTo(cx + s * u(0.012), yy(0.56));
+        c.quadraticCurveTo(cx + s * u(0.042), yy(0.26), cx + s * u(0.104), base);
+        c.closePath();
+        c.fill();
+      });
+
+      // core shaft through the waist up to the top house
+      c.beginPath();
+      c.moveTo(cx - u(0.026), yy(0.50));
+      c.lineTo(cx - u(0.022), yy(0.785));
+      c.lineTo(cx + u(0.022), yy(0.785));
+      c.lineTo(cx + u(0.026), yy(0.50));
+      c.closePath();
+      c.fill();
+
+      // top house: underside flares UP and OUT from the shaft to the rim,
+      // then the roof tapers back in — the saucer silhouette
+      c.beginPath();
+      c.moveTo(cx - u(0.024), yy(0.778));
+      c.quadraticCurveTo(cx - u(0.090), yy(0.800), cx - u(0.130), yy(0.846));
+      c.lineTo(cx - u(0.132), yy(0.862));
+      c.lineTo(cx - u(0.092), yy(0.888));
+      c.lineTo(cx - u(0.042), yy(0.906));
+      c.lineTo(cx + u(0.042), yy(0.906));
+      c.lineTo(cx + u(0.092), yy(0.888));
+      c.lineTo(cx + u(0.132), yy(0.862));
+      c.lineTo(cx + u(0.130), yy(0.846));
+      c.quadraticCurveTo(cx + u(0.090), yy(0.800), cx + u(0.024), yy(0.778));
+      c.closePath();
+      c.fill();
+
+      // spire
+      c.beginPath();
+      c.moveTo(cx - u(0.016), yy(0.906));
+      c.lineTo(cx - u(0.004), yy(1.0));
+      c.lineTo(cx + u(0.004), yy(1.0));
+      c.lineTo(cx + u(0.016), yy(0.906));
+      c.closePath();
+      c.fill();
+    }
+
+    function buildLand() {
+      land.width = Math.round((W + OVER * 2) * DPR);
+      land.height = Math.round(H * DPR);
+      lctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      lctx.clearRect(0, 0, W + OVER * 2, H);
+
+      // aerial perspective: the far ridge is hazier and bluer than the near one
+      ridgePath(lctx, RIDGE_FAR, "rgba(26,48,78,0.62)", OVER);
+      ridgePath(lctx, RIDGE_NEAR, "rgba(11,26,45,0.86)", OVER);
+
+      SKYLINE.forEach(([bx, bw, bh]) => {
+        const bH = H * bh, bY = horizon - bH;
+        lctx.fillStyle = "rgba(8,18,32,0.92)";
+        lctx.fillRect(OVER + bx * W, bY, bw * W, bH + 3);
+        if (bh > 0.18) lctx.fillRect(OVER + (bx + bw / 2) * W - 1, bY - H * 0.03, 2, H * 0.03);
+      });
+
+      // steady (non-twinkling) windows bake in here
+      windows.filter(w => !w.tw).forEach(w => {
+        const [bx, bw, bh] = SKYLINE[w.b];
+        const bH = H * bh, bY = horizon - bH;
+        lctx.fillStyle = `rgba(255,238,180,${w.a * 0.75})`;
+        lctx.fillRect(OVER + (bx + w.fx * bw) * W - 1.5, bY + w.fy * bH, 3, 4);
+      });
+
+      spaceNeedle(lctx, OVER + W * 0.18, horizon, H * 0.235);
+    }
+
+    let DPR = 1;
+
+    function resize() {
+      W = canvas.offsetWidth;
+      H = canvas.offsetHeight;
+      if (W === 0 || H === 0) return;
+      DPR = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(W * DPR);
+      canvas.height = Math.round(H * DPR);
+      ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+      horizon = H * HORIZON_F;
+      sunX = W * SUN_FX;
+      sunY = H * SUN_FY;
+      sunR = Math.min(W * 0.042, H * 0.075);
+
+      skyG = ctx!.createLinearGradient(0, 0, 0, horizon);
+      skyG.addColorStop(0, C.sky5); skyG.addColorStop(0.30, C.sky4);
+      skyG.addColorStop(0.55, C.sky3); skyG.addColorStop(0.75, C.sky2);
+      skyG.addColorStop(0.88, C.sky1); skyG.addColorStop(1, C.gold);
+
+      waterG = ctx!.createLinearGradient(0, horizon, 0, H);
+      waterG.addColorStop(0, "#256a8d"); waterG.addColorStop(0.22, "#1a5175");
+      waterG.addColorStop(0.62, "#0f3652"); waterG.addColorStop(1, C.deep);
+
+      vigG = ctx!.createRadialGradient(W * 0.5, H * 0.46, Math.min(W, H) * 0.30, W * 0.5, H * 0.5, Math.max(W, H) * 0.78);
+      vigG.addColorStop(0, "rgba(0,0,0,0)");
+      vigG.addColorStop(1, "rgba(3,10,20,0.42)");
+
+      buildLand();
+    }
+
+    /* Water surface height at x — the boat rides this exact curve, so hull
+       and sea never drift out of agreement. */
+    function surfaceY(x: number, chop: number) {
+      return horizon + H * 0.058
+        + Math.sin((x / W) * 3 * TAU + t * 1.2) * (6 + chop)
+        + Math.sin((x / W) * 4.8 * TAU + t * 1.56 + 1.2) * (2.4 + chop * 0.4);
+    }
+
+    function paintOrca(c: CanvasRenderingContext2D, L: number, rim: boolean) {
+      // body — fusiform, nose at +x
+      c.beginPath();
+      c.moveTo(L, 0);
+      c.bezierCurveTo(L * 0.62, -L * 0.30, L * 0.10, -L * 0.34, -L * 0.40, -L * 0.24);
+      c.bezierCurveTo(-L * 0.66, -L * 0.18, -L * 0.80, -L * 0.10, -L * 0.92, -L * 0.05);
+      c.lineTo(-L * 0.92, L * 0.05);
+      c.bezierCurveTo(-L * 0.72, L * 0.16, -L * 0.34, L * 0.28, L * 0.10, L * 0.26);
+      c.bezierCurveTo(L * 0.52, L * 0.24, L * 0.84, L * 0.15, L, 0);
+      c.closePath();
+      c.fillStyle = "rgba(9,17,29,0.96)";
+      c.fill();
+
+      // flukes
+      c.beginPath();
+      c.moveTo(-L * 0.86, 0);
+      c.quadraticCurveTo(-L * 1.02, -L * 0.16, -L * 1.20, -L * 0.34);
+      c.quadraticCurveTo(-L * 1.00, -L * 0.14, -L * 0.90, 0);
+      c.quadraticCurveTo(-L * 1.00, L * 0.14, -L * 1.20, L * 0.32);
+      c.quadraticCurveTo(-L * 1.02, L * 0.15, -L * 0.86, 0);
+      c.closePath();
+      c.fill();
+
+      // dorsal fin — tall and falcate
+      c.beginPath();
+      c.moveTo(-L * 0.02, -L * 0.30);
+      c.quadraticCurveTo(L * 0.02, -L * 0.74, -L * 0.20, -L * 0.86);
+      c.quadraticCurveTo(-L * 0.20, -L * 0.52, -L * 0.34, -L * 0.24);
+      c.closePath();
+      c.fill();
+
+      // pectoral fin
+      c.beginPath();
+      c.moveTo(L * 0.30, L * 0.16);
+      c.quadraticCurveTo(L * 0.16, L * 0.52, -L * 0.06, L * 0.56);
+      c.quadraticCurveTo(L * 0.06, L * 0.28, L * 0.10, L * 0.20);
+      c.closePath();
+      c.fill();
+
+      // white belly
+      c.beginPath();
+      c.moveTo(L * 0.66, L * 0.10);
+      c.bezierCurveTo(L * 0.30, L * 0.26, -L * 0.20, L * 0.24, -L * 0.62, L * 0.10);
+      c.bezierCurveTo(-L * 0.22, L * 0.16, L * 0.28, L * 0.17, L * 0.66, L * 0.03);
+      c.closePath();
+      c.fillStyle = "rgba(232,243,248,0.88)";
+      c.fill();
+
+      // eye patch — the mark that makes it read as an orca and not a shape
+      c.beginPath();
+      c.ellipse(L * 0.52, -L * 0.10, L * 0.15, L * 0.075, -0.22, 0, TAU);
+      c.fill();
+
+      // grey saddle patch behind the dorsal
+      c.beginPath();
+      c.ellipse(-L * 0.30, -L * 0.15, L * 0.20, L * 0.085, -0.15, 0, TAU);
+      c.fillStyle = "rgba(120,146,166,0.55)";
+      c.fill();
+
+      // backlit rim along the spine — it is breaching into the sun
+      if (rim) {
+        c.beginPath();
+        c.moveTo(L * 0.96, -L * 0.05);
+        c.bezierCurveTo(L * 0.60, -L * 0.30, L * 0.10, -L * 0.34, -L * 0.40, -L * 0.24);
+        c.strokeStyle = "rgba(255,214,150,0.75)";
+        c.lineWidth = Math.max(1, L * 0.045);
+        c.stroke();
+      }
+    }
+
+    /* The signature element. Origin is the waterline, amidships; bow at +x. */
+    function paintBoat(c: CanvasRenderingContext2D, L: number, sunSide: number, belly: number, ghost: boolean) {
+      const MH = L * 1.62;            // mast height
+      const mx = L * 0.06;            // mast station, slightly forward of centre
+      const alpha = ghost ? 0.55 : 1;
+
+      // ── wake, laid down before the hull so the hull sits on top of it
+      if (!ghost) {
+        const wg = c.createLinearGradient(-L * 0.5, 0, -L * 2.6, 0);
+        wg.addColorStop(0, "rgba(226,244,250,0.34)");
+        wg.addColorStop(1, "rgba(226,244,250,0)");
+        c.fillStyle = wg;
+        c.beginPath();
+        c.moveTo(-L * 0.46, -L * 0.02);
+        c.quadraticCurveTo(-L * 1.5, L * 0.02, -L * 2.6, L * 0.16);
+        c.lineTo(-L * 2.6, L * 0.30);
+        c.quadraticCurveTo(-L * 1.5, L * 0.16, -L * 0.46, L * 0.07);
+        c.closePath();
+        c.fill();
+        for (let i = 0; i < 3; i++) {
+          const px = -L * (0.7 + i * 0.55);
+          c.beginPath();
+          c.ellipse(px, L * (0.06 + i * 0.045), L * 0.20, L * 0.030, 0, 0, TAU);
+          c.fillStyle = `rgba(232,247,252,${0.20 - i * 0.05})`;
+          c.fill();
+        }
+      }
+
+      // ── hull: sheer line, raked stem, transom
+      c.beginPath();
+      c.moveTo(-L * 0.50, -L * 0.055);
+      c.quadraticCurveTo(-L * 0.14, -L * 0.082, L * 0.30, -L * 0.088);
+      c.lineTo(L * 0.53, -L * 0.115);
+      c.quadraticCurveTo(L * 0.45, L * 0.055, L * 0.12, L * 0.078);
+      c.quadraticCurveTo(-L * 0.24, L * 0.078, -L * 0.48, L * 0.018);
+      c.closePath();
+      c.fillStyle = `rgba(13,25,43,${0.96 * alpha})`;
+      c.fill();
+
+      // boot stripe + a thin gold cove line — the detail that makes it a yacht
+      c.beginPath();
+      c.moveTo(-L * 0.47, -L * 0.030);
+      c.quadraticCurveTo(-L * 0.10, -L * 0.056, L * 0.48, -L * 0.078);
+      c.strokeStyle = `rgba(247,197,106,${0.55 * alpha})`;
+      c.lineWidth = Math.max(0.8, L * 0.012);
+      c.stroke();
+
+      if (!ghost) {
+        // cabin trunk
+        c.beginPath();
+        c.moveTo(-L * 0.20, -L * 0.078);
+        c.lineTo(-L * 0.16, -L * 0.155);
+        c.lineTo(L * 0.13, -L * 0.160);
+        c.lineTo(L * 0.17, -L * 0.084);
+        c.closePath();
+        c.fillStyle = "rgba(22,40,63,0.95)";
+        c.fill();
+
+        // helmsman at the tiller — someone is sailing this boat
+        c.fillStyle = "rgba(10,20,34,0.92)";
+        c.beginPath();
+        c.ellipse(-L * 0.33, -L * 0.175, L * 0.030, L * 0.034, 0, 0, TAU);
+        c.fill();
+        c.beginPath();
+        c.moveTo(-L * 0.375, -L * 0.070);
+        c.lineTo(-L * 0.352, -L * 0.150);
+        c.lineTo(-L * 0.300, -L * 0.150);
+        c.lineTo(-L * 0.288, -L * 0.070);
+        c.closePath();
+        c.fill();
+      }
+
+      // ── rig
+      c.strokeStyle = `rgba(198,214,226,${0.30 * alpha})`;
+      c.lineWidth = Math.max(0.6, L * 0.007);
+      c.beginPath();                                   // forestay
+      c.moveTo(mx, -MH); c.lineTo(L * 0.53, -L * 0.115);
+      c.moveTo(mx, -MH); c.lineTo(-L * 0.49, -L * 0.055); // backstay
+      c.stroke();
+
+      // ── mainsail, aft of the mast, bellied by the wind
+      const head = -MH * 0.985, clewX = -L * 0.40, clewY = -L * 0.30;
+      c.beginPath();
+      c.moveTo(mx, head);
+      c.quadraticCurveTo(clewX - L * belly * 2.4, -MH * 0.46, clewX, clewY);
+      c.quadraticCurveTo(-L * 0.16, -L * 0.14, mx, -L * 0.115);
+      c.closePath();
+      const mg = c.createLinearGradient(mx + sunSide * L * 0.6, head, mx - sunSide * L * 0.6, clewY);
+      mg.addColorStop(0, `rgba(255,246,228,${0.97 * alpha})`);
+      mg.addColorStop(0.55, `rgba(243,226,196,${0.92 * alpha})`);
+      mg.addColorStop(1, `rgba(196,178,158,${0.88 * alpha})`);
+      c.fillStyle = mg;
+      c.fill();
+
+      // ── headsail, forward of the mast
+      c.beginPath();
+      c.moveTo(mx - L * 0.01, -MH * 0.87);
+      c.quadraticCurveTo(L * 0.46 + L * belly * 1.6, -MH * 0.44, L * 0.52, -L * 0.11);
+      c.quadraticCurveTo(L * 0.22, -L * 0.24, mx - L * 0.02, -L * 0.30);
+      c.closePath();
+      const jg = c.createLinearGradient(L * 0.5, -MH * 0.5, mx, -L * 0.2);
+      jg.addColorStop(0, `rgba(255,243,220,${0.94 * alpha})`);
+      jg.addColorStop(1, `rgba(219,201,176,${0.86 * alpha})`);
+      c.fillStyle = jg;
+      c.fill();
+
+      // sunlit edge on whichever luff faces the sun
+      c.beginPath();
+      if (sunSide > 0) {
+        c.moveTo(mx - L * 0.01, -MH * 0.87);
+        c.quadraticCurveTo(L * 0.46 + L * belly * 1.6, -MH * 0.44, L * 0.52, -L * 0.11);
+      } else {
+        c.moveTo(mx, head);
+        c.quadraticCurveTo(clewX - L * belly * 2.4, -MH * 0.46, clewX, clewY);
+      }
+      c.strokeStyle = `rgba(255,222,160,${0.80 * alpha})`;
+      c.lineWidth = Math.max(1, L * 0.020);
+      c.stroke();
+
+      // ── mast + boom, drawn over the sails
+      c.strokeStyle = `rgba(28,46,70,${0.95 * alpha})`;
+      c.lineWidth = Math.max(1.4, L * 0.024);
+      c.beginPath();
+      c.moveTo(mx, -L * 0.10); c.lineTo(mx, -MH);
+      c.stroke();
+      c.lineWidth = Math.max(1.1, L * 0.018);
+      c.beginPath();
+      c.moveTo(mx, -L * 0.185); c.lineTo(clewX, clewY);
+      c.stroke();
+
+      if (!ghost) {
+        // masthead burgee, fluttering
+        const f = Math.sin(tsec * 5.5) * 0.28;
+        c.beginPath();
+        c.moveTo(mx, -MH);
+        c.lineTo(mx - L * 0.20, -MH + L * 0.045 + f * L * 0.05);
+        c.lineTo(mx, -MH + L * 0.10);
+        c.closePath();
+        c.fillStyle = "rgba(247,197,106,0.92)";
+        c.fill();
+
+        // bow curl
+        c.beginPath();
+        c.ellipse(L * 0.50, L * 0.045, L * 0.14, L * 0.042, -0.25, 0, TAU);
+        c.fillStyle = "rgba(236,250,255,0.5)";
+        c.fill();
+      }
+    }
+
+    /* ── the frame ── */
+    function frame(now: number) {
+      raf = 0;
+      if (!W || !H || !skyG || !waterG || !vigG) { schedule(); return; }
+
+      const dt = Math.min((now - lastFrame) / 1000, 0.05);
+      lastFrame = now;
+      t += dt * 0.3;   // matches the original cadence, now frame-rate independent
+      tsec += dt;
+
+      // smooth pointer, decay scroll velocity (locked standard: *0.78 per frame)
+      ptr.x += (ptr.tx - ptr.x) * 0.055;
+      ptr.y += (ptr.ty - ptr.y) * 0.055;
+      scrollVel = Math.max(-40, Math.min(40, (scrollVel + rawScroll) * 0.78));
+      rawScroll = 0;
+      const vel = Math.max(-12, Math.min(12, scrollVel * 0.6));
+      const chop = Math.abs(vel) * 0.42;            // fast scroll kicks up sea state
+      const drift = Math.min(scrollDepth / Math.max(H, 1), 1);
+
+      const pxS = ptr.x * 6, pyS = ptr.y * 4;                       // sky parallax
+      const pxL = ptr.x * 15, pyL = ptr.y * 9 + drift * H * 0.05;   // land parallax
+      const pxW = ptr.x * 24;                                       // water parallax
+
+      ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+      /* ── sky ── */
+      ctx!.fillStyle = skyG;
+      ctx!.fillRect(0, 0, W, horizon + 2);
+
+      /* ── stars ── */
+      stars.forEach(s => {
+        const a = Math.max(0, 0.62 - s.y * 1.7) * (0.45 + Math.sin(tsec * s.sp + s.ph) * 0.55);
+        if (a < 0.03) return;
+        ctx!.beginPath();
+        ctx!.arc(s.x * W + pxS * 0.4, s.y * H + pyS * 0.4, s.r, 0, TAU);
+        ctx!.fillStyle = `rgba(255,248,224,${a})`;
+        ctx!.fill();
+      });
+
+      const sx = sunX + pxS, sy = sunY + pyS;
+
+      /* ── crepuscular rays (desktop only — "complex fx SKIP" on mobile) ── */
+      if (!isMobile) {
+        ctx!.save();
+        ctx!.globalCompositeOperation = "lighter";
+        ctx!.translate(sx, sy);
+        for (let i = 0; i < 5; i++) {
+          const ang = -Math.PI / 2 + (i - 2) * 0.30 + Math.sin(tsec * 0.07 + i) * 0.04;
+          const len = H * (0.34 + 0.20 * (0.5 + 0.5 * Math.sin(tsec * 0.22 + i * 1.7)));
+          const wd = W * 0.016 * (0.7 + 0.5 * Math.sin(tsec * 0.29 + i));
+          const g = ctx!.createLinearGradient(0, 0, Math.cos(ang) * len, Math.sin(ang) * len);
+          g.addColorStop(0, "rgba(255,206,124,0.11)");
+          g.addColorStop(1, "rgba(255,190,110,0)");
+          ctx!.fillStyle = g;
+          ctx!.beginPath();
+          ctx!.moveTo(0, 0);
+          ctx!.lineTo(Math.cos(ang) * len - Math.sin(ang) * wd, Math.sin(ang) * len + Math.cos(ang) * wd);
+          ctx!.lineTo(Math.cos(ang) * len + Math.sin(ang) * wd, Math.sin(ang) * len - Math.cos(ang) * wd);
+          ctx!.closePath();
+          ctx!.fill();
+        }
+        ctx!.restore();
+      }
+
+      /* ── sun: layered bloom, then a disc flattened by atmospheric refraction ── */
+      const pulse = 1 + Math.sin(tsec * 0.5) * 0.05;
+      ([[5.2, 0.055], [3.4, 0.095], [2.0, 0.19]] as [number, number][]).forEach(([m, a]) => {
+        const r = sunR * m * pulse;
+        const g = ctx!.createRadialGradient(sx, sy, 0, sx, sy, r);
+        g.addColorStop(0, `rgba(255,214,116,${a})`);
+        g.addColorStop(1, "rgba(255,190,90,0)");
+        ctx!.fillStyle = g;
+        ctx!.beginPath();
+        ctx!.arc(sx, sy, r, 0, TAU);
+        ctx!.fill();
+      });
+      // sun pillar
+      const pg = ctx!.createLinearGradient(sx, sy - H * 0.26, sx, sy + H * 0.04);
+      pg.addColorStop(0, "rgba(255,196,124,0)");
+      pg.addColorStop(0.6, `rgba(255,212,146,${0.09 + 0.03 * Math.sin(tsec * 0.6)})`);
+      pg.addColorStop(1, "rgba(255,196,124,0)");
+      ctx!.fillStyle = pg;
+      ctx!.fillRect(sx - sunR * 0.55, sy - H * 0.26, sunR * 1.1, H * 0.30);
+
+      ctx!.save();
+      ctx!.translate(sx, sy);
+      ctx!.scale(1, 0.90);   // a low sun is squashed by refraction — real, and it reads
+      const disc = ctx!.createRadialGradient(-sunR * 0.22, -sunR * 0.26, 0, 0, 0, sunR);
+      disc.addColorStop(0, "#fffdf0");
+      disc.addColorStop(0.45, "#ffe795");
+      disc.addColorStop(0.82, "#ffbe58");
+      disc.addColorStop(1, "#ff9f45");
+      ctx!.fillStyle = disc;
+      ctx!.beginPath();
+      ctx!.arc(0, 0, sunR, 0, TAU);
+      ctx!.fill();
+      ctx!.restore();
+
+      /* ── underlit clouds: dark top pass, warm underside pass ── */
+      clouds.forEach(cl => {
+        cl.x += cl.sp * dt;
+        if (cl.x > 1.35) cl.x -= 1.6;
+        const cxp = (cl.x - 0.18) * W + pxS * 1.6;
+        const cyp = cl.y * H + pyS * 0.8;
+        const cw = cl.w * W, ch = cl.h * H;
+        const near = 1 - Math.min(1, Math.abs(cxp - sx) / (W * 0.55));
+        if (!isMobile) {
+          cl.puffs.forEach(p => {
+            const r = p.r * ch * 1.6;
+            const g = ctx!.createRadialGradient(cxp + p.dx * cw * 0.5, cyp + p.dy * ch - ch * 0.6, 0,
+              cxp + p.dx * cw * 0.5, cyp + p.dy * ch - ch * 0.6, r);
+            g.addColorStop(0, `rgba(48,36,72,${0.30 * cl.a})`);
+            g.addColorStop(1, "rgba(48,36,72,0)");
+            ctx!.fillStyle = g;
+            ctx!.beginPath();
+            ctx!.arc(cxp + p.dx * cw * 0.5, cyp + p.dy * ch - ch * 0.6, r, 0, TAU);
+            ctx!.fill();
+          });
+        }
+        cl.puffs.forEach(p => {
+          const r = p.r * ch * 1.3;
+          const px = cxp + p.dx * cw * 0.5, py = cyp + p.dy * ch;
+          const g = ctx!.createRadialGradient(px, py, 0, px, py, r);
+          g.addColorStop(0, `rgba(255,${Math.round(148 + near * 74)},${Math.round(108 + near * 34)},${(0.20 + near * 0.42) * cl.a})`);
+          g.addColorStop(1, "rgba(255,150,110,0)");
+          ctx!.fillStyle = g;
+          ctx!.beginPath();
+          ctx!.arc(px, py, r, 0, TAU);
+          ctx!.fill();
+        });
+      });
+
+      /* ── land: one blit of the pre-rendered layer ── */
+      ctx!.drawImage(land, 0, 0, land.width, land.height, -OVER + pxL, pyL, W + OVER * 2, H);
+
+      /* ── afterglow bleeding over the ridgeline, drawn AFTER the silhouette ── */
+      ctx!.save();
+      ctx!.globalCompositeOperation = "lighter";
+      const bleed = ctx!.createRadialGradient(sx, sy, 0, sx, sy, sunR * 4.6);
+      bleed.addColorStop(0, "rgba(255,196,110,0.16)");
+      bleed.addColorStop(1, "rgba(255,170,90,0)");
+      ctx!.fillStyle = bleed;
+      ctx!.beginPath();
+      ctx!.arc(sx, sy, sunR * 4.6, 0, TAU);
+      ctx!.fill();
+      ctx!.restore();
+
+      /* ── twinkling windows + Space Needle lights ── */
+      windows.filter(w => w.tw).forEach(w => {
+        const [bx, bw, bh] = SKYLINE[w.b];
+        const bH = H * bh, bY = horizon - bH;
+        const a = w.a * (0.45 + 0.55 * Math.sin(tsec * w.sp + w.ph));
+        if (a < 0.04) return;
+        ctx!.fillStyle = `rgba(255,238,180,${a})`;
+        ctx!.fillRect(OVER + (bx + w.fx * bw) * W - 1.5 - OVER + pxL, bY + w.fy * bH + pyL, 3, 4);
+      });
+      {
+        const nx = W * 0.18 + pxL, nh = H * 0.235, nb = horizon + pyL;
+        const halo = ctx!.createRadialGradient(nx, nb - nh * 0.855, 0, nx, nb - nh * 0.855, nh * 0.36);
+        halo.addColorStop(0, "rgba(255,214,150,0.20)");
+        halo.addColorStop(1, "rgba(255,214,150,0)");
+        ctx!.fillStyle = halo;
+        ctx!.beginPath();
+        ctx!.arc(nx, nb - nh * 0.855, nh * 0.36, 0, TAU);
+        ctx!.fill();
+        // observation-deck window band
+        ctx!.fillStyle = `rgba(255,229,176,${0.52 + 0.10 * Math.sin(tsec * 0.8)})`;
+        ctx!.fillRect(nx - nh * 0.120, nb - nh * 0.862, nh * 0.240, Math.max(1.5, nh * 0.016));
+        // aircraft beacon
+        const blink = Math.sin(tsec * 2.4);
+        if (blink > 0.55) {
+          ctx!.fillStyle = `rgba(255,92,74,${(blink - 0.55) * 2})`;
+          ctx!.beginPath();
+          ctx!.arc(nx, nb - nh * 0.995, Math.max(1.2, nh * 0.014), 0, TAU);
+          ctx!.fill();
+        }
+      }
+
+      /* ── horizon haze: the aerial-perspective band that sells the distance ── */
+      const hz = ctx!.createLinearGradient(0, horizon - H * 0.11, 0, horizon + 1);
+      hz.addColorStop(0, "rgba(255,186,126,0)");
+      hz.addColorStop(1, "rgba(255,190,132,0.26)");
+      ctx!.fillStyle = hz;
+      ctx!.fillRect(0, horizon - H * 0.11, W, H * 0.11 + 1);
+
+      /* ── water ── */
+      ctx!.fillStyle = waterG;
+      ctx!.fillRect(0, horizon, W, H - horizon);
+
+      /* ── reflection of the land, flipped about the horizon and squashed ── */
+      ctx!.save();
+      ctx!.beginPath();
+      ctx!.rect(0, horizon, W, H - horizon);
+      ctx!.clip();
+      ctx!.globalAlpha = 0.16;
+      ctx!.translate(0, horizon);
+      ctx!.scale(1, -0.62);
+      ctx!.translate(0, -horizon);
+      ctx!.drawImage(land, 0, 0, land.width, land.height, -OVER + pxL * 0.6, pyL * 0.6, W + OVER * 2, H);
+      ctx!.restore();
+
+      /* ── boat state, computed once and shared by the reflection + the boat ── */
+      const bL = Math.min(W * 0.088, H * 0.155);
+      const swing = Math.sin(tsec * 0.07);
+      const vsign = Math.cos(tsec * 0.07);
+      const bX = W * (0.45 + swing * 0.155) + pxW;
+      const bY = surfaceY(bX, chop) - bL * 0.03;
+      const slope = (surfaceY(bX + bL * 0.4, chop) - surfaceY(bX - bL * 0.4, chop)) / (bL * 0.8);
+      const flip = vsign >= 0 ? 1 : -1;
+      // squash bottoms out exactly when the boat turns, so the mirror is invisible
+      // and the moment reads as a tack: foreshortened, upright, then heeled the other way
+      const squash = 0.42 + 0.58 * Math.min(1, Math.abs(vsign) * 2.6);
+      const heel = 0.115 * Math.min(1, Math.abs(vsign) * 2.6) + Math.sin(tsec * 0.62) * 0.018;
+      const belly = 0.10 + Math.sin(tsec * 0.9) * 0.028;
+      const sunSide = flip * (sunX - bX) >= 0 ? 1 : -1;
+
+      /* ── boat reflection, under the waves ── */
+      ctx!.save();
+      ctx!.beginPath();
+      ctx!.rect(0, horizon, W, H - horizon);
+      ctx!.clip();
+      ctx!.globalAlpha = 0.22;
+      ctx!.translate(bX, bY);
+      ctx!.scale(flip * squash, -0.52);
+      ctx!.rotate(heel + Math.atan(slope) * 0.5);
+      paintBoat(ctx!, bL, sunSide, belly, true);
+      ctx!.restore();
+
+      /* ── sun glitter: a widening cone of discrete glints ── */
+      const gx = sx + pxW * 0.4;
+      glints.forEach(g => {
+        const u = g.u;
+        const y = horizon + Math.pow(u, 1.7) * (H - horizon);
+        const spread = W * 0.018 + u * W * 0.19;
+        const x = gx + g.o * 2 * spread + Math.sin(tsec * 0.5 + g.ph) * spread * 0.06;
+        const a = (0.62 - u * 0.42) * (0.35 + 0.65 * Math.abs(Math.sin(tsec * g.sp + g.ph)));
+        if (a < 0.04) return;
+        ctx!.fillStyle = `rgba(255,${Math.round(214 - u * 40)},${Math.round(126 - u * 40)},${a})`;
+        ctx!.fillRect(x, y, 3 + u * 20, Math.max(1, 1 + u * 1.8));
+      });
+
+      /* ── waves ── */
+      const step = isMobile ? 8 : 3;
+      ([[0.062, 6, 3, 1.2, "30,95,130", 0.68],
+        [0.125, 8, 4, 0.9, "25,80,110", 0.80],
+        [0.205, 10, 5, 0.7, "20,65,95", 0.86],
+        [0.325, 7, 3, 1.4, "15,50,75", 0.92]] as [number, number, number, number, string, number][])
+        .forEach(([yf, amp, period, speed, rgb, a]) => {
+          const yBase = horizon + H * yf + pxW * 0.05;
+          const A = amp + chop * (0.4 + yf * 2);
+          ctx!.beginPath();
+          ctx!.moveTo(0, yBase);
+          for (let x = 0; x <= W; x += step) {
+            ctx!.lineTo(x, yBase
+              + Math.sin((x / W) * period * TAU + t * speed) * A
+              + Math.sin((x / W) * period * 1.6 * TAU + t * speed * 1.3 + 1.2) * A * 0.4);
+          }
+          ctx!.lineTo(W, H); ctx!.lineTo(0, H); ctx!.closePath();
+          ctx!.fillStyle = `rgba(${rgb},${a})`;
+          ctx!.fill();
+        });
+
+      /* ── crest lines ── */
+      for (let i = 0; i < 3; i++) {
+        const yb = horizon + H * (0.072 + i * 0.072);
+        ctx!.beginPath();
+        for (let x = 0; x <= W; x += isMobile ? 10 : 5) {
+          const y = yb + Math.sin((x / W) * 5 * TAU + t * (1 + i * 0.3)) * (3 + i * 1.5 + chop * 0.3);
+          if (x === 0) ctx!.moveTo(x, y); else ctx!.lineTo(x, y);
+        }
+        ctx!.strokeStyle = `rgba(255,255,255,${0.13 - i * 0.03})`;
+        ctx!.lineWidth = 1.4;
+        ctx!.stroke();
+      }
+
+      /* ── the sailboat ── */
+      ctx!.save();
+      ctx!.translate(bX, bY);
+      ctx!.scale(flip * squash, 1);
+      ctx!.rotate(heel + Math.atan(slope) * 0.6);
+      paintBoat(ctx!, bL, sunSide, belly, false);
+      ctx!.restore();
+
+      /* ── orca: fin approach → breach → splash, on a 16s cycle, backlit
+             by breaching through the sun's glitter path ── */
+      {
+        const CYCLE = 16;
+        const c = tsec % CYCLE;
+        const oL = Math.min(W * 0.034, H * 0.062);
+        const oX = W * 0.715 + pxW * 0.8;
+        const oW = surfaceY(oX, chop) + H * 0.055;
+
+        if (c < 2.4) {                                   // dorsal fin cutting the surface
+          const p = c / 2.4;
+          const fx = oX - (1 - p) * W * 0.075;
+          const fh = oL * 0.52 * Math.min(1, p * 2.2);
+          ctx!.beginPath();
+          ctx!.moveTo(fx + oL * 0.20, oW);
+          ctx!.quadraticCurveTo(fx + oL * 0.06, oW - fh, fx - oL * 0.16, oW - fh * 0.92);
+          ctx!.quadraticCurveTo(fx - oL * 0.12, oW - fh * 0.35, fx - oL * 0.30, oW);
+          ctx!.closePath();
+          ctx!.fillStyle = "rgba(9,17,29,0.92)";
+          ctx!.fill();
+          ctx!.beginPath();                              // V wake
+          ctx!.moveTo(fx - oL * 0.3, oW);
+          ctx!.lineTo(fx - oL * 1.7, oW + oL * 0.30);
+          ctx!.moveTo(fx - oL * 0.3, oW);
+          ctx!.lineTo(fx - oL * 1.7, oW - oL * 0.10);
+          ctx!.strokeStyle = "rgba(226,244,250,0.28)";
+          ctx!.lineWidth = 1.3;
+          ctx!.stroke();
+        } else if (c < 5.4) {                            // the breach
+          const p = (c - 2.4) / 3.0;
+          const lift = Math.sin(p * Math.PI);
+          const px2 = oX + (p - 0.45) * W * 0.055;
+          const py2 = oW - lift * H * 0.135;
+          ctx!.save();
+          ctx!.translate(px2, py2);
+          ctx!.rotate((p - 0.5) * 1.55);
+          ctx!.scale(0.92 + lift * 0.22, 0.92 + lift * 0.22);
+          paintOrca(ctx!, oL, lift > 0.25);
+          ctx!.restore();
+          // water sheeting off the body
+          if (lift > 0.12) {
+            for (let i = 0; i < (isMobile ? 6 : 14); i++) {
+              const a2 = (i / 14) * TAU;
+              const rr = oL * (0.5 + (i % 5) * 0.22) * lift;
+              ctx!.beginPath();
+              ctx!.arc(px2 + Math.cos(a2) * rr * 1.6, py2 + Math.sin(a2) * rr * 0.7 + oL * 0.3,
+                Math.max(0.8, 1.4 + lift * 2.2), 0, TAU);
+              ctx!.fillStyle = `rgba(214,242,250,${0.45 * lift})`;
+              ctx!.fill();
+            }
+          }
+        } else if (c < 7.6) {                            // splash + settling rings
+          const p = (c - 5.4) / 2.2;
+          const ease = 1 - p;
+          for (let i = 0; i < 3; i++) {
+            const rr = oL * (0.6 + p * 3.4 + i * 0.6);
+            ctx!.beginPath();
+            ctx!.ellipse(oX, oW, rr, rr * 0.24, 0, 0, TAU);
+            ctx!.strokeStyle = `rgba(226,246,252,${0.30 * ease * (1 - i * 0.28)})`;
+            ctx!.lineWidth = 1.4;
+            ctx!.stroke();
+          }
+          for (let i = 0; i < (isMobile ? 8 : 20); i++) {
+            const ang = Math.PI + (i / 20) * Math.PI;
+            const spd = 0.55 + ((i * 37) % 13) / 13 * 0.9;
+            const age = p * 2.2;
+            const dx2 = Math.cos(ang) * spd * oL * 2.6 * age;
+            const dy2 = Math.sin(ang) * spd * oL * 3.0 * age + 26 * age * age;
+            if (dy2 > oL * 0.6) continue;
+            ctx!.beginPath();
+            ctx!.arc(oX + dx2, oW + dy2, Math.max(0.8, 2.4 * ease), 0, TAU);
+            ctx!.fillStyle = `rgba(236,250,255,${0.55 * ease})`;
+            ctx!.fill();
+          }
+        }
+      }
+
+      /* ── gulls: some flapping, some gliding, nudged by scroll velocity ── */
+      gulls.forEach(g => {
+        g.x += g.sp * dt;
+        if (g.x > 1.25) g.x -= 1.45;
+        const gxp = g.x * W + pxS * 2;
+        const gyp = g.y * H + Math.sin(tsec * 0.75 + g.ph) * 7 + pyS * 1.4 - vel * 1.6;
+        const flap = Math.sin(tsec * 3.4 + g.ph) * (Math.sin(tsec * 0.28 + g.ph) > g.glide ? 0.18 : 1);
+        const s = g.size;
+        ctx!.beginPath();
+        ctx!.moveTo(gxp - s * 1.15, gyp + flap * s * 0.55);
+        ctx!.quadraticCurveTo(gxp - s * 0.5, gyp - flap * s * 0.42, gxp, gyp);
+        ctx!.quadraticCurveTo(gxp + s * 0.5, gyp - flap * s * 0.42, gxp + s * 1.15, gyp + flap * s * 0.55);
+        ctx!.strokeStyle = "rgba(255,247,228,0.74)";
+        ctx!.lineWidth = 1.25;
+        ctx!.stroke();
+      });
+
+      /* ── vignette ── */
+      ctx!.fillStyle = vigG;
+      ctx!.fillRect(0, 0, W, H);
+
+      schedule();
+    }
+
+    function schedule() {
+      if (!looping || !onScreen || document.hidden) { raf = 0; return; }
+      if (!raf) raf = requestAnimationFrame(frame);
+    }
+
+    function start() {
+      if (motion.matches) { lastFrame = performance.now(); frame(lastFrame + 16); return; }
+      if (looping && raf) return;
+      looping = true;
+      lastFrame = performance.now();
+      schedule();
+    }
+
+    function stop() {
+      looping = false;
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+    }
+
+    /* ── listeners ── */
+    const onResize = () => { resize(); if (motion.matches) { lastFrame = performance.now(); frame(lastFrame + 16); } };
+    const onScrollEvt = () => {
+      const y = window.scrollY;
+      rawScroll += y - lastScroll;
+      lastScroll = y;
+      scrollDepth = y;
     };
-    draw();
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("resize", resize); };
+    const onMove = (e: PointerEvent) => {
+      const r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      ptr.tx = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width - 0.5) * 2));
+      ptr.ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2));
+    };
+    const onLeave = () => { ptr.tx = 0; ptr.ty = 0; };
+    const onVis = () => { if (document.hidden) stop(); else start(); };
+    const onMotion = () => { stop(); resize(); start(); };
+
+    const io = new IntersectionObserver(([e]) => {
+      onScreen = e.isIntersecting;
+      if (onScreen) start(); else stop();
+    }, { threshold: 0 });
+
+    resize();
+    io.observe(canvas);
+    window.addEventListener("resize", onResize, { passive: true });
+    window.addEventListener("scroll", onScrollEvt, { passive: true });
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerleave", onLeave, { passive: true });
+    document.addEventListener("visibilitychange", onVis);
+    motion.addEventListener("change", onMotion);
+    start();
+
+    return () => {
+      stop();
+      io.disconnect();
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScrollEvt);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerleave", onLeave);
+      document.removeEventListener("visibilitychange", onVis);
+      motion.removeEventListener("change", onMotion);
+    };
   }, [isMobile]);
-  return <canvas ref={ref} style={{ position:"absolute", inset:0, width:"100%", height:"100%" }}/>;
+
+  return <canvas ref={ref} aria-hidden="true" style={{ position:"absolute", inset:0, width:"100%", height:"100%", display:"block" }}/>;
 }
 
 function WaveDivider({ flip = false, fill = C.deep, bg = "transparent" }: { flip?: boolean; fill?: string; bg?: string }) {
