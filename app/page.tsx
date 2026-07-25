@@ -144,10 +144,16 @@ function SkyCanvas({ isMobile = false }) {
 
     /* ── helpers (function declarations: hoisted, so ordering can't bite) ── */
 
+    /* Relief is scaled by aspect ratio. Peak heights are fractions of H, so on a
+       portrait viewport the same peaks compress horizontally and the Olympics
+       turn into a saw blade — and the sun's saddle pinches shut along with them.
+       Flattening toward the horizon keeps it a mountain range at 390px wide and
+       leaves it untouched at any normal desktop ratio. */
     function ridgePath(c: CanvasRenderingContext2D, pts: [number, number][], fill: string, ox: number) {
+      const relief = Math.min(1, 0.45 + (W / H) * 0.42);
       c.beginPath();
       c.moveTo(ox, horizon + 2);
-      pts.forEach(([px, py]) => c.lineTo(ox + px * W, py * H));
+      pts.forEach(([px, py]) => c.lineTo(ox + px * W, horizon - (horizon - py * H) * relief));
       c.lineTo(ox + W, horizon + 2);
       c.closePath();
       c.fillStyle = fill;
