@@ -1315,7 +1315,7 @@ export default function GrantsSails() {
         @keyframes sway{0%,100%{transform:rotate(-1deg)}50%{transform:rotate(1deg)}}
         @keyframes pulse-glow{0%,100%{box-shadow:0 0 20px rgba(247,197,106,0.3)}50%{box-shadow:0 0 40px rgba(247,197,106,0.6)}}
         @keyframes wave-drift{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-        .wave-drift{animation-name:wave-drift;animation-timing-function:linear;animation-iteration-count:infinite;will-change:transform}
+        .wave-drift{animation-name:wave-drift;animation-timing-function:linear;animation-iteration-count:infinite}
         @media (prefers-reduced-motion: reduce){.wave-drift{animation:none}}
         a{cursor:pointer}
       `}</style>
