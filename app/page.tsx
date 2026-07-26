@@ -862,21 +862,43 @@ function SkyCanvas({ isMobile = false }) {
         boatX += steerVel * dt;
         settleT += dt;
         if (settleT > 0.7) {
-          /* Rejoin. sin(theta) = (x/W - MID)/AMP has two roots: asin gives the
-             one with cos >= 0 (making way to the right), PI - asin the one with
-             cos <= 0. Picking by approachDir makes the resumed cycle continue in
-             the direction the boat was already going. Position is exact because
-             the steer target is clamped to the cycle's own range, so s is never
-             clamped here and the cycle can always reach where the boat is. */
-          const s = Math.max(-1, Math.min(1, (boatX / W - MID) / AMP));
-          const a = Math.asin(s);
-          cyclePhase = (approachDir >= 0 ? a : Math.PI - a) - tsec * CYC;
+          /* Rejoin. If the boat came to rest OUTSIDE the nominal roam, the
+             bound it overshot moves out to meet it and that point becomes a
+             TURNING POINT: sin = +1 at the right bound, -1 at the left, where
+             the cycle's velocity is zero. The boat is already at rest, so the
+             handover is continuous in position AND velocity — strictly better
+             than matching position alone, and it reads as "sailed to where you
+             pointed, then tacked back".
+             Inside the nominal roam there is no bound to move, so it rejoins
+             mid-swing as before: sin(theta) = (x/W - MID)/AMP has two roots and
+             approachDir picks the one still travelling the way the boat was. */
+          const fx = boatX / W;
+          if (fx > NOM_R) {
+            boundR = fx; boundL = NOM_L;
+            cyclePhase = Math.PI / 2 - tsec * CYC;
+          } else if (fx < NOM_L) {
+            boundL = fx; boundR = NOM_R;
+            cyclePhase = -Math.PI / 2 - tsec * CYC;
+          } else {
+            boundL = NOM_L; boundR = NOM_R;
+            const m = (NOM_L + NOM_R) / 2, a2 = (NOM_R - NOM_L) / 2;
+            const s = Math.max(-1, Math.min(1, (fx - m) / a2));
+            const a = Math.asin(s);
+            cyclePhase = (approachDir >= 0 ? a : Math.PI - a) - tsec * CYC;
+          }
           steerMode = "cycle";
         }
       }
 
-      // Pose comes from MEASURED velocity, identically in all three modes.
-      const rawVel = dt > 0 ? (boatX - prevX) / dt : boatVel;
+      /* Pose comes from measured velocity. In cycle mode the previous position
+         is recomputed with the CURRENT bounds, so bound easing cancels out and
+         only the phase advance — the sailing — contributes. In steer/settle the
+         boat is driven directly, so the plain delta is the sailing velocity. */
+      const rawVel = dt > 0
+        ? (steerMode === "cycle"
+            ? (boatX - cycX(cyclePhase, tsec - dt)) / dt
+            : (boatX - prevX) / dt)
+        : boatVel;
       boatVel += (rawVel - boatVel) * Math.min(1, dt * 12);
 
       const bX = boatX + pxW;
