@@ -1003,7 +1003,14 @@ function SkyCanvas({ isMobile = false }) {
          gets the silhouette only. Harbour seal, not sea lion: rounded head, no
          external ear flaps. */
       const paintSeal = () => {
-        const R = bL * 0.14;
+        /* Affine in bL rather than proportional. At bL*0.14 the head was 8.3 px
+           at 390 and read as a blob rather than an animal — the ripple rings
+           were carrying the whole story. This lifts the narrow end to R=9.75
+           (head 16.8 px, clearing the R>9 eye gate) while leaving 1440 at
+           exactly 17.74, unchanged. bL is already min(W*0.088, H*0.155), so the
+           H cap keeps this bounded on wide-short viewports: 1440x400 -> 12.14.
+           Monotonic, and linear so it cannot overshoot mid-range. */
+        const R = bL * 0.0865 + 6.78;
         const wy = surfaceY(sealX, chop, SEAL_D);
         const up = sealT < 0.55 ? 1 - Math.pow(1 - sealT / 0.55, 2)
                  : sealT < 3.55 ? 1
