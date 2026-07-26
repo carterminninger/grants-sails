@@ -1180,6 +1180,39 @@ function SkyCanvas({ isMobile = false }) {
     // reduced-motion query below
     const onHover = () => { if (hoverQ.matches) bindPointer(); else unbindPointer(); };
 
+    /* ── click / tap to steer ──
+       Bound to the hero SECTION, not the canvas. Verified with elementFromPoint:
+       the hero content div covers 100% of the water at every width, so the
+       canvas is never the hit target below the horizon and a canvas listener
+       would have had a ZERO-pixel hit area and silently done nothing. Events
+       bubble to the section instead. Anything landing on a link or button is
+       ignored rather than swallowed, so the CTAs keep working and — unlike a
+       pointer-events:none approach — text selection is preserved.
+       Deliberately NOT gated on hover capability: that gate exists for
+       pointermove parallax. This is wanted on touch. A tap only counts if
+       pointerup lands close in space and time to its pointerdown, so the start
+       of a scroll swipe never steers. */
+    const STEER_MID = 0.45, STEER_AMP = 0.155;   // mirrors MID/AMP in frame()
+    const host: HTMLElement = canvas.parentElement ?? canvas;
+    let downX = 0, downY = 0, downT = 0;
+    const onDown = (e: PointerEvent) => { downX = e.clientX; downY = e.clientY; downT = performance.now(); };
+    const onUp = (e: PointerEvent) => {
+      if (motion.matches) return;                       // inert, not queued
+      const el = e.target as Element | null;
+      if (el?.closest("a,button,input,select,textarea,label,summary,[role=button]")) return;
+      if (performance.now() - downT > 500) return;
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 12) return;
+      const r = canvas.getBoundingClientRect();
+      if (!r.width || !r.height || e.clientY - r.top < horizon) return;   // water only
+      if (steerMode === "cycle") steerVel = boatVel;   // enter with no discontinuity
+      // undo water parallax, then clamp to the cycle's OWN range so the rejoin
+      // can always land exactly — a wider range would force either a position
+      // jump or a second transit at handover
+      const fx = (e.clientX - r.left - ptr.x * 24) / r.width;
+      steerTarget = Math.max(STEER_MID - STEER_AMP, Math.min(STEER_MID + STEER_AMP, fx)) * W;
+      steerMode = "steer";
+    };
+
     const io = new IntersectionObserver(([e]) => {
       onScreen = e.isIntersecting;
       if (onScreen) start(); else stop();
@@ -1191,6 +1224,8 @@ function SkyCanvas({ isMobile = false }) {
     window.addEventListener("scroll", onScrollEvt, { passive: true });
     bindPointer();
     hoverQ.addEventListener("change", onHover);
+    host.addEventListener("pointerdown", onDown, { passive: true });
+    host.addEventListener("pointerup", onUp, { passive: true });
     document.addEventListener("visibilitychange", onVis);
     motion.addEventListener("change", onMotion);
     start();
@@ -1202,6 +1237,8 @@ function SkyCanvas({ isMobile = false }) {
       window.removeEventListener("scroll", onScrollEvt);
       unbindPointer();
       hoverQ.removeEventListener("change", onHover);
+      host.removeEventListener("pointerdown", onDown);
+      host.removeEventListener("pointerup", onUp);
       document.removeEventListener("visibilitychange", onVis);
       motion.removeEventListener("change", onMotion);
     };
