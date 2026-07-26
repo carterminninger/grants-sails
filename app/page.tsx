@@ -104,6 +104,14 @@ function SkyCanvas({ isMobile = false }) {
     let settleT = 0;
     let approachDir = 1;
     let boatInit = false;
+    /* The cycle's range is STATE, not constants. When the boat is steered
+       outside the nominal roam, the bound it overshot moves out to meet it and
+       that position becomes a TURNING POINT of the cycle — velocity is zero
+       there, and the boat has just come to rest, so the handover is continuous
+       in position AND velocity by construction. The moved bound then eases back
+       to nominal over ~90s. */
+    const NOM_L = 0.295, NOM_R = 0.605;
+    let boundL = NOM_L, boundR = NOM_R;
     let onScreen = true, looping = false;
     let skyG: CanvasGradient | null = null;
     let waterG: CanvasGradient | null = null;
