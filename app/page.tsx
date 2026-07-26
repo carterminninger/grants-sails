@@ -1067,8 +1067,41 @@ function SkyCanvas({ isMobile = false }) {
       ptr.ty = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height - 0.5) * 2));
     };
     const onLeave = () => { ptr.tx = 0; ptr.ty = 0; };
+    /* pointerleave does NOT bubble, so a window-level listener for it never
+       fires — measured 0 events across a full tap cycle in both engines.
+       documentElement does receive it; pointerout with a null relatedTarget is
+       the belt-and-braces signal that the pointer left the window entirely. */
+    const onOut = (e: PointerEvent) => { if (e.relatedTarget === null) onLeave(); };
     const onVis = () => { if (document.hidden) stop(); else start(); };
     const onMotion = () => { stop(); resize(); start(); };
+
+    /* Parallax is gated on INPUT TYPE, not viewport width. On a touch device a
+       tap fires pointermove, so the scene glided to the tap position and stayed
+       there — measured: the land layer moved 11.0 CSS px (Chromium) / 12.6
+       (WebKit) on a single synthetic touch pointermove at 0.9W, and never
+       returned, because the reset was bound to an event that cannot fire.
+       A width heuristic is the wrong test — a narrow window on a desktop still
+       has a mouse, and a large tablet still does not. */
+    const hoverQ = window.matchMedia("(hover: hover) and (pointer: fine)");
+    let pointerBound = false;
+    const bindPointer = () => {
+      if (pointerBound || !hoverQ.matches) return;
+      window.addEventListener("pointermove", onMove, { passive: true });
+      document.documentElement.addEventListener("pointerleave", onLeave, { passive: true });
+      window.addEventListener("pointerout", onOut, { passive: true });
+      pointerBound = true;
+    };
+    const unbindPointer = () => {
+      if (!pointerBound) return;
+      window.removeEventListener("pointermove", onMove);
+      document.documentElement.removeEventListener("pointerleave", onLeave);
+      window.removeEventListener("pointerout", onOut);
+      pointerBound = false;
+      onLeave();                     // hold the scene at its neutral composition
+    };
+    // hybrid laptops and plugged-in mice can flip this mid-session, same as the
+    // reduced-motion query below
+    const onHover = () => { if (hoverQ.matches) bindPointer(); else unbindPointer(); };
 
     const io = new IntersectionObserver(([e]) => {
       onScreen = e.isIntersecting;
@@ -1079,8 +1112,8 @@ function SkyCanvas({ isMobile = false }) {
     io.observe(canvas);
     window.addEventListener("resize", onResize, { passive: true });
     window.addEventListener("scroll", onScrollEvt, { passive: true });
-    window.addEventListener("pointermove", onMove, { passive: true });
-    window.addEventListener("pointerleave", onLeave, { passive: true });
+    bindPointer();
+    hoverQ.addEventListener("change", onHover);
     document.addEventListener("visibilitychange", onVis);
     motion.addEventListener("change", onMotion);
     start();
@@ -1090,8 +1123,8 @@ function SkyCanvas({ isMobile = false }) {
       io.disconnect();
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onScrollEvt);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerleave", onLeave);
+      unbindPointer();
+      hoverQ.removeEventListener("change", onHover);
       document.removeEventListener("visibilitychange", onVis);
       motion.removeEventListener("change", onMotion);
     };
