@@ -822,8 +822,17 @@ function SkyCanvas({ isMobile = false }) {
 
       /* ── boat state, computed once and shared by the reflection + the boat ── */
       const bL = Math.min(W * 0.088, H * 0.155);
-      const CYC = 0.07, AMP = 0.155, MID = 0.45;
-      const cycX = (ph: number) => W * (MID + Math.sin(tsec * CYC + ph) * AMP);
+      const CYC = 0.07;
+      /* Bounds ease home on a ~26s time constant, ~91s to settle. That drift is
+         real motion but it is NOT sailing, so it is excluded from the velocity
+         that drives pose (see rawVel below) — otherwise a boat resting at a
+         turning point while its bound eased inward would render at full heel
+         instead of foreshortened and upright. */
+      const kEase = 1 - Math.exp(-dt / 26);
+      boundL += (NOM_L - boundL) * kEase;
+      boundR += (NOM_R - boundR) * kEase;
+      const MID = (boundL + boundR) / 2, AMP = (boundR - boundL) / 2;
+      const cycX = (ph: number, at: number = tsec) => W * (MID + Math.sin(at * CYC + ph) * AMP);
       if (!boatInit) {
         boatX = cycX(cyclePhase);
         boatVel = W * AMP * CYC * Math.cos(tsec * CYC + cyclePhase);
