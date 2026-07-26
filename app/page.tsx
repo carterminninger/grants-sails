@@ -1271,6 +1271,10 @@ function SkyCanvas({ isMobile = false }) {
       const fx = (e.clientX - r.left - ptr.x * 24) / r.width;
       steerTarget = Math.max(STEER_MID - STEER_AMP, Math.min(STEER_MID + STEER_AMP, fx)) * W;
       steerMode = "steer";
+      // Concurrent, never sequential: steering is already committed above, so
+      // the seal cannot delay the boat's departure by a single frame.
+      sealX = Math.max(0.06, Math.min(0.94, fx)) * W;
+      sealT = 0;
     };
 
     const io = new IntersectionObserver(([e]) => {
