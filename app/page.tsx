@@ -1093,9 +1093,6 @@ function SkyCanvas({ isMobile = false }) {
         ctx!.closePath();
         ctx!.fillStyle = stripFill(dBot === null ? (dTop + 1) / 2 : (dTop + dBot) / 2);
         ctx!.fill();
-        // SEAL_D is exactly bandDepth(4), so drawing here puts strips 1-4 behind
-        // the seal and 5-11 in front of it — near water passes over its body.
-        if (k === 4 && sealT >= 0) paintSeal();
       }
 
       /* ── crest lines: one per strip, so they run to the bottom of the hero
