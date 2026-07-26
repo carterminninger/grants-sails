@@ -1231,7 +1231,12 @@ function SkyCanvas({ isMobile = false }) {
        pointermove parallax. This is wanted on touch. A tap only counts if
        pointerup lands close in space and time to its pointerdown, so the start
        of a scroll swipe never steers. */
-    const STEER_MID = 0.45, STEER_AMP = 0.155;   // mirrors MID/AMP in frame()
+    // Steer range is much wider than the cycle's nominal roam now: overshooting
+    // it is legal, because the rejoin moves the overshot bound out to meet the
+    // boat and treats that point as a turning point. Rig fits at both extremes:
+    // hull half-length is ~0.53 * bL where bL = min(W*0.088, H*0.155), so at
+    // 0.85W the bow reaches ~0.90W at 1440 and ~0.90W at 390.
+    const STEER_MID = 0.50, STEER_AMP = 0.35;    // 0.15W .. 0.85W
     const host: HTMLElement = canvas.parentElement ?? canvas;
     let downX = 0, downY = 0, downT = 0;
     const onDown = (e: PointerEvent) => { downX = e.clientX; downY = e.clientY; downT = performance.now(); };
