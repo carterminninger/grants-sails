@@ -445,15 +445,20 @@ function SkyCanvas({ isMobile = false }) {
     }
 
     /* The signature element. Origin is the waterline, amidships; bow at +x. */
-    function paintBoat(c: CanvasRenderingContext2D, L: number, sunSide: number, belly: number, ghost: boolean) {
+    function paintBoat(c: CanvasRenderingContext2D, L: number, sunSide: number, belly: number, ghost: boolean, wake = 1) {
       const MH = L * 1.62;            // mast height
       const mx = L * 0.06;            // mast station, slightly forward of centre
       const alpha = ghost ? 0.55 : 1;
 
-      // ── wake, laid down before the hull so the hull sits on top of it
+      /* ── wake, laid down before the hull so the hull sits on top of it.
+         Alpha scales with speedNorm, which saturates at 6.0 px/s against a
+         15.6 px/s cycle peak — so the wake stays at FULL strength for roughly
+         three quarters of the cycle and only dies in the quarter around a turn,
+         which is where a real wake dies too. This is not a general weakening.
+         The bow curl and the reflection are deliberately left unscaled. */
       if (!ghost) {
         const wg = c.createLinearGradient(-L * 0.5, 0, -L * 2.6, 0);
-        wg.addColorStop(0, "rgba(226,244,250,0.34)");
+        wg.addColorStop(0, `rgba(226,244,250,${0.34 * wake})`);
         wg.addColorStop(1, "rgba(226,244,250,0)");
         c.fillStyle = wg;
         c.beginPath();
@@ -467,7 +472,7 @@ function SkyCanvas({ isMobile = false }) {
           const px = -L * (0.7 + i * 0.55);
           c.beginPath();
           c.ellipse(px, L * (0.06 + i * 0.045), L * 0.20, L * 0.030, 0, 0, TAU);
-          c.fillStyle = `rgba(232,247,252,${0.20 - i * 0.05})`;
+          c.fillStyle = `rgba(232,247,252,${(0.20 - i * 0.05) * wake})`;
           c.fill();
         }
       }
