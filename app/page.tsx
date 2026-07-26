@@ -1228,6 +1228,17 @@ function SkyCanvas({ isMobile = false }) {
         }
       }
 
+      /* ── harbour seal, drawn LAST of the three animals ──
+         Depth order is boat 0.1208 (farthest) < seal 0.1980 < orca ~0.236
+         (nearest), so by depth the seal should sit in front of the boat and
+         behind the orca. Drawing it after both is the safe end of that: the
+         boat can no longer paint over an animal that is nearer than it is,
+         which is what made the two read as a collision rather than as the boat
+         pulling up behind the seal. Seal-over-orca is only reachable if the
+         user clicks within ~a body length of a breach, and losing that is
+         cheaper than the boat bug. */
+      if (sealT >= 0) paintSeal();
+
       /* ── gulls: some flapping, some gliding, nudged by scroll velocity ── */
       gulls.forEach(g => {
         g.x += g.sp * dt;
