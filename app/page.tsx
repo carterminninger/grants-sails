@@ -84,6 +84,26 @@ function SkyCanvas({ isMobile = false }) {
 
     let W = 0, H = 0, horizon = 0, sunX = 0, sunY = 0, sunR = 0;
     let raf = 0, t = 0, tsec = 0, lastFrame = 0;
+
+    /* ── click-to-steer state ──
+       flip, squash, heel and sunSide are ALL derived from one quantity: the
+       boat's measured horizontal velocity. That single source is why it reads
+       as sailing rather than sliding, so steering must NOT set the position
+       directly — it drives the same velocity the autonomous cycle drives, and
+       everything downstream falls out unchanged.
+       cyclePhase is a persistent offset on the 90s cycle. On rejoin we solve
+       for the offset that puts the cycle exactly where the boat already is,
+       travelling the way it is already travelling, so the handover is
+       continuous in position AND direction. */
+    let steerMode: "cycle" | "steer" | "settle" = "cycle";
+    let cyclePhase = 0;        // persistent phase offset on the autonomous cycle
+    let boatX = 0;             // CSS px, EXCLUDES pxW — the single position state
+    let boatVel = 0;           // px/s, smoothed; the one thing pose is derived from
+    let steerVel = 0;          // px/s, the steering controller's own velocity
+    let steerTarget = 0;
+    let settleT = 0;
+    let approachDir = 1;
+    let boatInit = false;
     let onScreen = true, looping = false;
     let skyG: CanvasGradient | null = null;
     let waterG: CanvasGradient | null = null;
