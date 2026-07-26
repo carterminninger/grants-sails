@@ -112,6 +112,17 @@ function SkyCanvas({ isMobile = false }) {
        to nominal over ~90s. */
     const NOM_L = 0.295, NOM_R = 0.605;
     let boundL = NOM_L, boundR = NOM_R;
+
+    /* Harbour seal, surfaced by a steer click. The splash IS the seal breaking
+       through — not a splash followed by a seal — so nothing appears before the
+       animal that makes it. Exactly one at a time: a second click relocates it
+       by resetting these two, so two can never coexist.
+       Fixed depth at bandDepth(4) = 0.1980, a strip BOUNDARY, so "behind" and
+       "in front" are unambiguous: strips 1-4 are behind it, 5-11 in front. That
+       also places it nearer than the boat (0.1208) and further than the orca
+       (~0.236), which is the order they are already drawn in. */
+    const SEAL_D = 0.1980, SEAL_CYCLE = 5.9;
+    let sealX = 0, sealT = -1;   // sealT < 0 means inert
     let onScreen = true, looping = false;
     let skyG: CanvasGradient | null = null;
     let waterG: CanvasGradient | null = null;
