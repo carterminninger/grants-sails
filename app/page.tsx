@@ -990,6 +990,92 @@ function SkyCanvas({ isMobile = false }) {
         return `rgba(${c.map(v => Math.round(Math.max(0, Math.min(255, v)))).join(",")},${SA})`;
       };
 
+      if (sealT >= 0) { sealT += dt; if (sealT > SEAL_CYCLE) sealT = -1; }
+
+      /* ── harbour seal ──
+         Surface 0-0.55s, hold to 3.55s, dive to 4.30s, water closes by 5.9s.
+         The splash is the animal breaking through, so rings and droplets are
+         driven by the same clock as the head rather than fired separately.
+         Rings borrow the orca's vocabulary — clamped radius, staggered droplet
+         launch — scaled down; a seal is smaller and gentler.
+         Detail is size-gated, not drawn as mush: eyes need R > 9, whiskers
+         R > 14. R = bL * 0.14 is ~17.7 CSS px at 1440 and ~4.8 at 390, so 390
+         gets the silhouette only. Harbour seal, not sea lion: rounded head, no
+         external ear flaps. */
+      const paintSeal = () => {
+        const R = bL * 0.14;
+        const wy = surfaceY(sealX, chop, SEAL_D);
+        const up = sealT < 0.55 ? 1 - Math.pow(1 - sealT / 0.55, 2)
+                 : sealT < 3.55 ? 1
+                 : sealT < 4.30 ? 1 - Math.pow((sealT - 3.55) / 0.75, 2)
+                 : 0;
+        const rp = Math.min(1, sealT / 2.2), fade = 1 - Math.min(1, sealT / SEAL_CYCLE);
+        for (let i = 0; i < 3; i++) {
+          const rr = R * (0.5 + rp * 2.6 + i * 0.5);
+          ctx!.beginPath();
+          ctx!.ellipse(sealX, wy, rr, rr * 0.22, 0, 0, TAU);
+          ctx!.strokeStyle = `rgba(226,246,252,${0.26 * fade * (1 - i * 0.28)})`;
+          ctx!.lineWidth = 1.1;
+          ctx!.stroke();
+        }
+        if (sealT < 0.9) {
+          const n = isMobile ? 6 : 14, decay = 1 - sealT / 0.9;
+          for (let i = 0; i < n; i++) {
+            const j = i * 7919;
+            const ang = Math.PI + 0.2 + ((j % 89) / 89) * (Math.PI - 0.4);
+            const spd = 0.4 + ((j % 53) / 53) * 0.9;
+            const age = sealT * 2.6 - ((j % 19) / 19) * 0.3;
+            if (age <= 0) continue;
+            const dx2 = Math.cos(ang) * spd * R * 2.0 * age;
+            const dy2 = Math.sin(ang) * spd * R * 2.2 * age + 22 * age * age;
+            if (dy2 > R * 0.4) continue;
+            ctx!.beginPath();
+            ctx!.arc(sealX + dx2, wy + dy2, Math.max(0.6, 1.4 * decay), 0, TAU);
+            ctx!.fillStyle = `rgba(236,250,255,${0.5 * decay})`;
+            ctx!.fill();
+          }
+        }
+        if (up < 0.03) return;
+        const look = Math.sin(sealT * 0.8) * 0.18;
+        ctx!.save();
+        ctx!.translate(sealX, wy - up * R * 1.05);
+        ctx!.rotate(look * 0.25);
+        ctx!.beginPath();
+        ctx!.ellipse(0, 0, R * 0.86, R, 0, 0, TAU);
+        ctx!.fillStyle = "rgba(58,66,74,0.96)";
+        ctx!.fill();
+        ctx!.beginPath();
+        ctx!.ellipse(look * R * 0.5, R * 0.42, R * 0.52, R * 0.40, 0, 0, TAU);
+        ctx!.fillStyle = "rgba(74,82,90,0.96)";
+        ctx!.fill();
+        if (R > 9) {
+          ctx!.fillStyle = "rgba(12,14,18,0.95)";
+          [-1, 1].forEach(s => {
+            ctx!.beginPath();
+            ctx!.ellipse(s * R * 0.34 + look * R * 0.4, -R * 0.12, R * 0.17, R * 0.20, 0, 0, TAU);
+            ctx!.fill();
+          });
+          ctx!.beginPath();
+          ctx!.ellipse(look * R * 0.5, R * 0.30, R * 0.13, R * 0.10, 0, 0, TAU);
+          ctx!.fill();
+        }
+        if (R > 14) {
+          ctx!.strokeStyle = "rgba(198,206,214,0.45)";
+          ctx!.lineWidth = Math.max(0.5, R * 0.035);
+          [-1, 1].forEach(s => { for (let i = 0; i < 3; i++) {
+            ctx!.beginPath();
+            ctx!.moveTo(s * R * 0.30, R * 0.34 + i * R * 0.10);
+            ctx!.lineTo(s * R * 0.95, R * 0.22 + i * R * 0.16);
+            ctx!.stroke();
+          }});
+        }
+        ctx!.restore();
+        ctx!.beginPath();
+        ctx!.ellipse(sealX, wy, R * 0.95, R * 0.20, 0, 0, TAU);
+        ctx!.fillStyle = `rgba(232,249,255,${0.34 * up})`;
+        ctx!.fill();
+      };
+
       for (let k = 1; k <= NB; k++) {
         const dTop = bandDepth(k);
         const dBot = k < NB ? bandDepth(k + 1) : null;
@@ -1007,6 +1093,9 @@ function SkyCanvas({ isMobile = false }) {
         ctx!.closePath();
         ctx!.fillStyle = stripFill(dBot === null ? (dTop + 1) / 2 : (dTop + dBot) / 2);
         ctx!.fill();
+        // SEAL_D is exactly bandDepth(4), so drawing here puts strips 1-4 behind
+        // the seal and 5-11 in front of it — near water passes over its body.
+        if (k === 4 && sealT >= 0) paintSeal();
       }
 
       /* ── crest lines: one per strip, so they run to the bottom of the hero
