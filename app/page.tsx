@@ -814,16 +814,65 @@ function SkyCanvas({ isMobile = false }) {
 
       /* ── boat state, computed once and shared by the reflection + the boat ── */
       const bL = Math.min(W * 0.088, H * 0.155);
-      const swing = Math.sin(tsec * 0.07);
-      const vsign = Math.cos(tsec * 0.07);
-      const bX = W * (0.45 + swing * 0.155) + pxW;
+      const CYC = 0.07, AMP = 0.155, MID = 0.45;
+      const cycX = (ph: number) => W * (MID + Math.sin(tsec * CYC + ph) * AMP);
+      if (!boatInit) {
+        boatX = cycX(cyclePhase);
+        boatVel = W * AMP * CYC * Math.cos(tsec * CYC + cyclePhase);
+        boatInit = true;
+      }
+      const prevX = boatX;
+
+      if (steerMode === "cycle") {
+        boatX = cycX(cyclePhase);
+      } else if (steerMode === "steer") {
+        const dx = steerTarget - boatX;
+        const maxV = W * 0.075, acc = W * 0.10;
+        // sqrt(2*a*d) is the fastest speed you can still stop from exactly at
+        // the target, so this eases out on arrival with no separate phase, and
+        // the acceleration limit eases it in. Retargeting mid-passage just
+        // changes dx — the controller turns the boat rather than restarting.
+        const want = Math.sign(dx) * Math.min(maxV, Math.sqrt(2 * acc * Math.abs(dx)));
+        steerVel += Math.max(-acc * dt, Math.min(acc * dt, want - steerVel));
+        boatX += steerVel * dt;
+        if (Math.abs(dx) < W * 0.002 && Math.abs(steerVel) < W * 0.004) {
+          approachDir = steerVel >= 0 ? 1 : -1;
+          steerMode = "settle";
+          settleT = 0;
+        }
+      } else {
+        steerVel *= Math.max(0, 1 - dt * 4);          // brief pause on arrival
+        boatX += steerVel * dt;
+        settleT += dt;
+        if (settleT > 0.7) {
+          /* Rejoin. sin(theta) = (x/W - MID)/AMP has two roots: asin gives the
+             one with cos >= 0 (making way to the right), PI - asin the one with
+             cos <= 0. Picking by approachDir makes the resumed cycle continue in
+             the direction the boat was already going. Position is exact because
+             the steer target is clamped to the cycle's own range, so s is never
+             clamped here and the cycle can always reach where the boat is. */
+          const s = Math.max(-1, Math.min(1, (boatX / W - MID) / AMP));
+          const a = Math.asin(s);
+          cyclePhase = (approachDir >= 0 ? a : Math.PI - a) - tsec * CYC;
+          steerMode = "cycle";
+        }
+      }
+
+      // Pose comes from MEASURED velocity, identically in all three modes.
+      const rawVel = dt > 0 ? (boatX - prevX) / dt : boatVel;
+      boatVel += (rawVel - boatVel) * Math.min(1, dt * 12);
+
+      const bX = boatX + pxW;
       const bY = surfaceY(bX, chop) - bL * 0.03;
       const slope = (surfaceY(bX + bL * 0.4, chop) - surfaceY(bX - bL * 0.4, chop)) / (bL * 0.8);
-      const flip = vsign >= 0 ? 1 : -1;
+      const flip = boatVel >= 0 ? 1 : -1;
+      // Reproduces the old min(1, |cos| * 2.6) exactly: peak cycle speed is
+      // W*AMP*CYC, and |cos|*2.6 saturates at |v| = W*AMP*CYC/2.6.
+      const speedNorm = Math.min(1, Math.abs(boatVel) / (W * AMP * CYC / 2.6));
       // squash bottoms out exactly when the boat turns, so the mirror is invisible
       // and the moment reads as a tack: foreshortened, upright, then heeled the other way
-      const squash = 0.42 + 0.58 * Math.min(1, Math.abs(vsign) * 2.6);
-      const heel = 0.115 * Math.min(1, Math.abs(vsign) * 2.6) + Math.sin(tsec * 0.62) * 0.018;
+      const squash = 0.42 + 0.58 * speedNorm;
+      const heel = 0.115 * speedNorm + Math.sin(tsec * 0.62) * 0.018;
       const belly = 0.10 + Math.sin(tsec * 0.9) * 0.028;
       const sunSide = flip * (sunX - bX) >= 0 ? 1 : -1;
 
