@@ -591,11 +591,19 @@ function SkyCanvas({ isMobile = false }) {
          170.7 where water should be), and the scroll-depth term drove it the
          other way, sinking the land 21 / 42 / 84 device px at 0.25 / 0.5 / 1.0
          viewport heights. A horizontal slide along a horizontal waterline cannot
-         open a gap, and OVER = 32 of overscan covers the +/-15px of travel.
-         The scroll-depth term goes with it. Scroll REACTIVITY is untouched — it
-         runs through `vel` above, into sea chop and the gulls. */
+         open a gap, and OVER = 32 of overscan covers the travel with room to
+         spare. The scroll-depth term goes with it. Scroll REACTIVITY is
+         untouched — it runs through `vel` above, into sea chop and the gulls.
+
+         The land coefficient is deliberately the SMALLEST of the three despite
+         the land being the middle depth plane. It is the only hard-edged,
+         high-contrast silhouette in the scene, so a slide there is read
+         immediately; the water carries 24 and is invisible because it is
+         already in motion with no fixed edge to track against. 4 keeps a depth
+         cue at the threshold of notice rather than removing mouse response,
+         which the locked standard treats as an anti-pattern. */
       const pxS = ptr.x * 6, pyS = ptr.y * 4;                       // sky parallax
-      const pxL = ptr.x * 15, pyL = 0;                              // land: horizontal only
+      const pxL = ptr.x * 4, pyL = 0;                               // land: horizontal only
       const pxW = ptr.x * 24;                                       // water parallax
 
       ctx!.setTransform(DPR, 0, 0, DPR, 0, 0);
