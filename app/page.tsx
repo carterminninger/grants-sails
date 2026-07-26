@@ -1032,7 +1032,7 @@ function SkyCanvas({ isMobile = false }) {
       ctx!.translate(bX, bY);
       ctx!.scale(flip * squash, 1);
       ctx!.rotate(heel + Math.atan(slope) * 0.6);
-      paintBoat(ctx!, bL, sunSide, belly, false);
+      paintBoat(ctx!, bL, sunSide, belly, false, speedNorm);
       ctx!.restore();
 
       /* ── orca: fin approach → breach → splash, on a 16s cycle, backlit
