@@ -135,15 +135,23 @@ export function paintOrca(
   }
 
   // backlit rim along the spine — the breach-through-sun-glitter light.
-  // Same colour and weight class as the scene's current rim.
+  // Stroked along the body outline's OWN top beziers (identical control
+  // points, so it cannot drift off the silhouette) and clipped to the
+  // body, so only the inner half of the stroke shows: a lit edge, not a
+  // gold band floating on the back.
   if (opts.rim) {
+    c.save();
+    bodyPath(c);
+    c.clip();
     c.beginPath();
-    c.moveTo(-0.020, -0.062);
-    c.bezierCurveTo(-0.140, -0.108, -0.300, -0.126, -0.380, -0.122);
+    c.moveTo(0, 0.010);
+    c.bezierCurveTo(-0.005, -0.045, -0.050, -0.085, -0.140, -0.105);
+    c.bezierCurveTo(-0.240, -0.120, -0.300, -0.125, -0.380, -0.122);
     c.bezierCurveTo(-0.500, -0.115, -0.600, -0.095, -0.700, -0.070);
     c.strokeStyle = RIM;
-    c.lineWidth = Math.max(1 / len, 0.020);
+    c.lineWidth = Math.max(2 / len, 0.024);
     c.stroke();
+    c.restore();
   }
 
   c.restore();
