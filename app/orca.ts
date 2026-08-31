@@ -82,78 +82,23 @@ export function paintOrca(
   c.closePath();
   c.fill();
 
-  if (tail === "A") {
-    // tail A — FLAT CRESCENT: one wide thin boomerang sweeping BACK,
-    // tilted ~20° from horizontal; span ~0.26 tip-to-tip, thickness
-    // ~0.04 at centre tapering to rounded tips, shallow notch on the
-    // trailing edge. Total vertical extent ~0.10 — the honest side
-    // view of a horizontal fluke plane. Overlaps the stock: no seam.
-    c.beginPath();
-    c.moveTo(-0.850, -0.022);                                            // on the stock — the blend
-    c.quadraticCurveTo(-1.030, -0.058, -1.148, -0.046);                  // leading edge, back with a rise
-    c.quadraticCurveTo(-1.166, -0.038, -1.156, -0.022);                  // rounded far tip
-    c.quadraticCurveTo(-1.060, -0.016, -1.000, 0.002);                   // trailing edge toward the notch
-    c.quadraticCurveTo(-0.990, 0.008, -0.998, 0.016);                    // shallow trailing-edge notch
-    c.quadraticCurveTo(-0.965, 0.030, -0.930, 0.046);                    // trailing edge out to the near tip
-    c.quadraticCurveTo(-0.906, 0.056, -0.898, 0.044);                    // rounded near tip
-    c.quadraticCurveTo(-0.870, 0.028, -0.845, 0.018);                    // underside, back onto the stock
-    c.closePath();
-    c.fill();
-  } else if (tail === "B") {
-    // tail B — SLIGHT TWIST: same crescent with the stock rolled ~25°.
-    // Near lobe shows full, sweeping back-and-up; far lobe is
-    // foreshortened, peeking below/behind the stock.
-    c.beginPath();
-    c.moveTo(-0.848, -0.024);                                            // near lobe, from the stock
-    c.quadraticCurveTo(-0.990, -0.072, -1.098, -0.132);                  // leading edge, back and up
-    c.quadraticCurveTo(-1.116, -0.124, -1.106, -0.108);                  // rounded tip
-    c.quadraticCurveTo(-1.000, -0.050, -0.930, -0.006);                  // concave trailing edge home
-    c.quadraticCurveTo(-0.890, 0.010, -0.850, 0.016);                    // blend at the stock
-    c.closePath();
-    c.fill();
-    c.beginPath();
-    c.moveTo(-0.880, 0.014);                                             // far lobe, foreshortened
-    c.quadraticCurveTo(-0.948, 0.032, -0.990, 0.058);                    // short blade, down-back
-    c.quadraticCurveTo(-1.002, 0.070, -0.992, 0.078);                    // rounded stub tip
-    c.quadraticCurveTo(-0.942, 0.060, -0.892, 0.034);                    // underside back to the stock
-    c.closePath();
-    c.fill();
-  } else if (tail === "C") {
-    // tail C — BROAD FAN: one blade seen from slightly behind and above,
-    // the full upper surface visible — the classic orca-silhouette tail.
-    // Span ~0.30 tip-to-tip on an axis ~30° below horizontal (tilted
-    // down toward the viewer), vertical extent ~0.18, concave trailing
-    // edge with a clear centre notch, rounded tips, no second lobe.
-    // Overlaps the stock: no seam.
-    c.beginPath();
-    c.moveTo(-0.848, -0.020);                                            // on the stock — the blend
-    c.quadraticCurveTo(-0.905, -0.058, -0.975, -0.095);                  // leading edge up-back to the far tip
-    c.quadraticCurveTo(-0.995, -0.104, -0.998, -0.088);                  // rounded far (upper) tip
-    c.quadraticCurveTo(-1.020, -0.048, -1.048, -0.008);                  // trailing edge in, concave
-    c.quadraticCurveTo(-1.030, 0.004, -1.052, 0.014);                    // CLEAR centre notch (forward dimple)
-    c.quadraticCurveTo(-1.100, 0.040, -1.170, 0.072);                    // out to the near tip
-    c.quadraticCurveTo(-1.205, 0.090, -1.190, 0.104);                    // rounded near (lower) tip
-    c.quadraticCurveTo(-1.060, 0.092, -0.945, 0.058);                    // broad underside sweeping home
-    c.quadraticCurveTo(-0.882, 0.038, -0.845, 0.026);                    // blend at the stock
-    c.closePath();
-    c.fill();
-  } else {
-    // tail D — Carter's exact path (2026-08-31 ruling, rendered as
-    // given): broad two-lobed fan, symmetric top/bottom, wide lobes
-    // (chord ~0.045) swept back ~45°, rounded tips, concave trailing
-    // edges, clear centre notch. Overlaps the stock; opaque ink, no seam.
-    c.beginPath();
-    c.moveTo(-0.860, -0.024);                                            // on the stock, top
-    c.quadraticCurveTo(-0.940, -0.050, -1.015, -0.122);                  // upper lobe leading edge, back-and-up ~45°
-    c.quadraticCurveTo(-1.042, -0.134, -1.036, -0.108);                  // rounded upper tip
-    c.quadraticCurveTo(-0.992, -0.058, -0.962, -0.006);                  // concave trailing edge in to the notch
-    c.quadraticCurveTo(-0.952, 0.001, -0.962, 0.008);                    // notch dimple
-    c.quadraticCurveTo(-0.992, 0.060, -1.036, 0.112);                    // lower trailing edge out
-    c.quadraticCurveTo(-1.042, 0.138, -1.015, 0.126);                    // rounded lower tip
-    c.quadraticCurveTo(-0.940, 0.054, -0.860, 0.026);                    // lower leading edge home to the stock
-    c.closePath();
-    c.fill();
-  }
+  // flukes — the ruled tail (Carter's exact path, 2026-08-31): broad
+  // two-lobed fan, symmetric top/bottom (the standard flat-illustration
+  // cheat — it reads as a whale BECAUSE the lobes are broad and swept
+  // back), lobes wide (chord ~0.045) at ~45°, rounded tips, concave
+  // trailing edges, clear centre notch. Overlaps the stock; opaque ink,
+  // no seam.
+  c.beginPath();
+  c.moveTo(-0.860, -0.024);                                              // on the stock, top
+  c.quadraticCurveTo(-0.940, -0.050, -1.015, -0.122);                    // upper lobe leading edge, back-and-up ~45°
+  c.quadraticCurveTo(-1.042, -0.134, -1.036, -0.108);                    // rounded upper tip
+  c.quadraticCurveTo(-0.992, -0.058, -0.962, -0.006);                    // concave trailing edge in to the notch
+  c.quadraticCurveTo(-0.952, 0.001, -0.962, 0.008);                      // notch dimple
+  c.quadraticCurveTo(-0.992, 0.060, -1.036, 0.112);                      // lower trailing edge out
+  c.quadraticCurveTo(-1.042, 0.138, -1.015, 0.126);                      // rounded lower tip
+  c.quadraticCurveTo(-0.940, 0.054, -0.860, 0.026);                      // lower leading edge home to the stock
+  c.closePath();
+  c.fill();
 
   // pectoral fin — big rounded paddle rooted low just behind the head,
   // swept back ~30° from vertical rather than hanging straight down.
