@@ -386,75 +386,11 @@ function SkyCanvas({ isMobile = false }) {
       ) / 1.67;
     }
 
-    function paintOrca(c: CanvasRenderingContext2D, L: number, rim: boolean) {
-      // body — fusiform, nose at +x
-      c.beginPath();
-      c.moveTo(L, 0);
-      c.bezierCurveTo(L * 0.62, -L * 0.30, L * 0.10, -L * 0.34, -L * 0.40, -L * 0.24);
-      c.bezierCurveTo(-L * 0.66, -L * 0.18, -L * 0.80, -L * 0.10, -L * 0.92, -L * 0.05);
-      c.lineTo(-L * 0.92, L * 0.05);
-      c.bezierCurveTo(-L * 0.72, L * 0.16, -L * 0.34, L * 0.28, L * 0.10, L * 0.26);
-      c.bezierCurveTo(L * 0.52, L * 0.24, L * 0.84, L * 0.15, L, 0);
-      c.closePath();
-      c.fillStyle = "rgba(9,17,29,0.96)";
-      c.fill();
-
-      // flukes
-      c.beginPath();
-      c.moveTo(-L * 0.86, 0);
-      c.quadraticCurveTo(-L * 1.02, -L * 0.16, -L * 1.20, -L * 0.34);
-      c.quadraticCurveTo(-L * 1.00, -L * 0.14, -L * 0.90, 0);
-      c.quadraticCurveTo(-L * 1.00, L * 0.14, -L * 1.20, L * 0.32);
-      c.quadraticCurveTo(-L * 1.02, L * 0.15, -L * 0.86, 0);
-      c.closePath();
-      c.fill();
-
-      // dorsal fin — tall and falcate
-      c.beginPath();
-      c.moveTo(-L * 0.02, -L * 0.30);
-      c.quadraticCurveTo(L * 0.02, -L * 0.74, -L * 0.20, -L * 0.86);
-      c.quadraticCurveTo(-L * 0.20, -L * 0.52, -L * 0.34, -L * 0.24);
-      c.closePath();
-      c.fill();
-
-      // pectoral fin
-      c.beginPath();
-      c.moveTo(L * 0.30, L * 0.16);
-      c.quadraticCurveTo(L * 0.16, L * 0.52, -L * 0.06, L * 0.56);
-      c.quadraticCurveTo(L * 0.06, L * 0.28, L * 0.10, L * 0.20);
-      c.closePath();
-      c.fill();
-
-      // white belly
-      c.beginPath();
-      c.moveTo(L * 0.66, L * 0.10);
-      c.bezierCurveTo(L * 0.30, L * 0.26, -L * 0.20, L * 0.24, -L * 0.62, L * 0.10);
-      c.bezierCurveTo(-L * 0.22, L * 0.16, L * 0.28, L * 0.17, L * 0.66, L * 0.03);
-      c.closePath();
-      c.fillStyle = "rgba(232,243,248,0.88)";
-      c.fill();
-
-      // eye patch — the mark that makes it read as an orca and not a shape
-      c.beginPath();
-      c.ellipse(L * 0.52, -L * 0.10, L * 0.15, L * 0.075, -0.22, 0, TAU);
-      c.fill();
-
-      // grey saddle patch behind the dorsal
-      c.beginPath();
-      c.ellipse(-L * 0.30, -L * 0.15, L * 0.20, L * 0.085, -0.15, 0, TAU);
-      c.fillStyle = "rgba(120,146,166,0.55)";
-      c.fill();
-
-      // backlit rim along the spine — it is breaching into the sun
-      if (rim) {
-        c.beginPath();
-        c.moveTo(L * 0.96, -L * 0.05);
-        c.bezierCurveTo(L * 0.60, -L * 0.30, L * 0.10, -L * 0.34, -L * 0.40, -L * 0.24);
-        c.strokeStyle = "rgba(255,214,150,0.75)";
-        c.lineWidth = Math.max(1, L * 0.045);
-        c.stroke();
-      }
-    }
+    /* The orca now lives in app/orca.ts — one normalized profile (tail D,
+       Carter-ruled 2026-08-31), shared with the /dev/orca bench. The
+       module's paintOrca (imported at the top of the file) takes over
+       here; its origin is the NOSE and the body spans [-len, 0], so the
+       breach call site centres it with a +0.5·len shift. */
 
     /* The signature element. Origin is the waterline, amidships; bow at +x. */
     function paintBoat(c: CanvasRenderingContext2D, L: number, sunSide: number, belly: number, ghost: boolean, wake = 1) {
