@@ -67,14 +67,16 @@ export function paintOrca(
   c.closePath();
   c.fill();
 
-  // flukes — HORIZONTAL, so side-on they read as a thin shallow W with a
-  // clear centre notch, not a vertical fish tail.
+  // flukes — HORIZONTAL, cheated slightly toward a three-quarter view so
+  // the W opens up: span ~0.25 tip-to-tip, thin swept lobes, a clear
+  // forward centre notch. The stock keeps its taper; the lobes carry the
+  // spread.
   c.beginPath();
-  c.moveTo(-0.900, -0.026);
-  c.quadraticCurveTo(-0.960, -0.036, -1.000, -0.052);                    // upper lobe tip
-  c.quadraticCurveTo(-0.972, -0.020, -0.952, 0.004);                     // in to the notch
-  c.quadraticCurveTo(-0.978, 0.028, -1.000, 0.058);                      // lower lobe tip
-  c.quadraticCurveTo(-0.952, 0.042, -0.898, 0.030);                      // back to the stock
+  c.moveTo(-0.895, -0.026);
+  c.quadraticCurveTo(-0.960, -0.048, -1.010, -0.115);                    // upper lobe, swept back to its tip
+  c.quadraticCurveTo(-0.978, -0.056, -0.936, -0.002);                    // slim trailing edge in to the notch
+  c.quadraticCurveTo(-0.985, 0.062, -1.012, 0.128);                      // out along the lower trailing edge
+  c.quadraticCurveTo(-0.958, 0.058, -0.893, 0.032);                      // lower leading edge back to the stock
   c.closePath();
   c.fill();
 
