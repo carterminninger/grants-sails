@@ -72,11 +72,13 @@ export function paintOrca(
   // forward centre notch. The stock keeps its taper; the lobes carry the
   // spread.
   c.beginPath();
-  c.moveTo(-0.895, -0.026);
-  c.quadraticCurveTo(-0.965, -0.052, -1.015, -0.112);                    // upper lobe, swept back to its tip
-  c.quadraticCurveTo(-0.992, -0.060, -0.962, -0.006);                    // full trailing edge to a SHALLOW notch
-  c.quadraticCurveTo(-0.996, 0.058, -1.018, 0.124);                      // out along the lower trailing edge
-  c.quadraticCurveTo(-0.968, 0.056, -0.893, 0.032);                      // lower leading edge back to the stock
+  c.moveTo(-0.893, -0.030);
+  c.quadraticCurveTo(-0.945, -0.055, -1.000, -0.110);                    // leading edge up to the tip
+  c.quadraticCurveTo(-1.014, -0.096, -1.004, -0.076);                    // rounded upper tip, turning back
+  c.quadraticCurveTo(-0.970, -0.038, -0.950, -0.004);                    // WIDE trailing edge → shallow notch
+  c.quadraticCurveTo(-0.978, 0.030, -1.006, 0.080);                      // lower trailing edge out
+  c.quadraticCurveTo(-1.018, 0.102, -1.006, 0.120);                      // rounded lower tip
+  c.quadraticCurveTo(-0.950, 0.064, -0.891, 0.034);                      // leading edge home to the stock
   c.closePath();
   c.fill();
 
