@@ -137,6 +137,22 @@ export function paintOrca(
     c.quadraticCurveTo(-0.882, 0.038, -0.845, 0.026);                    // blend at the stock
     c.closePath();
     c.fill();
+  } else {
+    // tail D — Carter's exact path (2026-08-31 ruling, rendered as
+    // given): broad two-lobed fan, symmetric top/bottom, wide lobes
+    // (chord ~0.045) swept back ~45°, rounded tips, concave trailing
+    // edges, clear centre notch. Overlaps the stock; opaque ink, no seam.
+    c.beginPath();
+    c.moveTo(-0.860, -0.024);                                            // on the stock, top
+    c.quadraticCurveTo(-0.940, -0.050, -1.015, -0.122);                  // upper lobe leading edge, back-and-up ~45°
+    c.quadraticCurveTo(-1.042, -0.134, -1.036, -0.108);                  // rounded upper tip
+    c.quadraticCurveTo(-0.992, -0.058, -0.962, -0.006);                  // concave trailing edge in to the notch
+    c.quadraticCurveTo(-0.952, 0.001, -0.962, 0.008);                    // notch dimple
+    c.quadraticCurveTo(-0.992, 0.060, -1.036, 0.112);                    // lower trailing edge out
+    c.quadraticCurveTo(-1.042, 0.138, -1.015, 0.126);                    // rounded lower tip
+    c.quadraticCurveTo(-0.940, 0.054, -0.860, 0.026);                    // lower leading edge home to the stock
+    c.closePath();
+    c.fill();
   }
 
   // pectoral fin — big rounded paddle rooted low just behind the head,
