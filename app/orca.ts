@@ -48,22 +48,11 @@ function bodyPath(c: CanvasRenderingContext2D) {
   c.closePath();
 }
 
-/* Ruled tail candidates, rendered side by side on the bench:
-   A — flat crescent, the honest side view of horizontal flukes;
-   B — the same crescent with the stock rolled ~25°, near lobe full;
-   C — one broad fan blade seen from slightly behind/above, the classic
-       orca-silhouette tail;
-   D — Carter's exact path: broad two-lobed fan, symmetric top/bottom
-       (the standard flat-illustration cheat), lobes wide and swept back
-       ~45°, concave trailing edges, centre notch. */
-export type OrcaTail = "A" | "B" | "C" | "D";
-
 export function paintOrca(
   c: CanvasRenderingContext2D,
   len: number,
-  opts: { rim?: boolean; tail?: OrcaTail } = {},
+  opts: { rim?: boolean } = {},
 ) {
-  const tail = opts.tail ?? "A";
   c.save();
   c.scale(len, len);
 
