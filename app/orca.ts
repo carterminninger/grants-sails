@@ -27,18 +27,20 @@ const RIM   = "rgba(255,214,150,0.75)";    // scene sun-rim colour, unchanged
    stock narrows to ~0.06 before the flukes.                              */
 function bodyPath(c: CanvasRenderingContext2D) {
   c.beginPath();
-  c.moveTo(0, 0.010);                                                    // nose tip, just below axis
-  // top: blunt melon → deepest at ~-0.35 → long taper into the stock
-  c.bezierCurveTo(-0.005, -0.045, -0.050, -0.085, -0.140, -0.105);
-  c.bezierCurveTo(-0.240, -0.120, -0.300, -0.125, -0.380, -0.122);
-  c.bezierCurveTo(-0.500, -0.115, -0.600, -0.095, -0.700, -0.070);
+  c.moveTo(0, 0.006);                                                    // rounded snout tip
+  // top: gentle CONVEX taper from the crown down to the snout — not a
+  // point, not a rounded rectangle — then deepest at ~-0.35 and a long
+  // taper into the stock
+  c.bezierCurveTo(-0.002, -0.022, -0.030, -0.060, -0.095, -0.088);
+  c.bezierCurveTo(-0.180, -0.112, -0.260, -0.123, -0.360, -0.122);
+  c.bezierCurveTo(-0.480, -0.118, -0.590, -0.096, -0.700, -0.070);
   c.bezierCurveTo(-0.790, -0.048, -0.860, -0.034, -0.905, -0.028);
   c.lineTo(-0.905, 0.032);                                               // tail stock, depth 0.06
   // bottom: back toward the rounded chin
   c.bezierCurveTo(-0.840, 0.042, -0.760, 0.058, -0.660, 0.072);
   c.bezierCurveTo(-0.540, 0.086, -0.440, 0.094, -0.340, 0.096);
-  c.bezierCurveTo(-0.240, 0.096, -0.140, 0.088, -0.075, 0.068);
-  c.bezierCurveTo(-0.030, 0.052, -0.005, 0.035, 0, 0.010);
+  c.bezierCurveTo(-0.240, 0.096, -0.150, 0.086, -0.070, 0.070);
+  c.bezierCurveTo(-0.028, 0.048, -0.008, 0.032, 0, 0.006);
   c.closePath();
 }
 
