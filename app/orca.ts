@@ -123,15 +123,15 @@ export function paintOrca(
     // edge with a clear centre notch, rounded tips, no second lobe.
     // Overlaps the stock: no seam.
     c.beginPath();
-    c.moveTo(-0.845, -0.020);                                            // on the stock — the blend
-    c.quadraticCurveTo(-0.885, -0.055, -0.920, -0.062);                  // short leading edge to the far tip
-    c.quadraticCurveTo(-0.940, -0.064, -0.942, -0.050);                  // rounded far (upper) tip
-    c.quadraticCurveTo(-0.975, -0.022, -1.003, 0.002);                   // concave trailing edge in…
-    c.quadraticCurveTo(-0.992, 0.012, -1.012, 0.020);                    // …centre notch dimple…
-    c.quadraticCurveTo(-1.080, 0.048, -1.172, 0.086);                    // …and out to the near tip
-    c.quadraticCurveTo(-1.196, 0.098, -1.180, 0.110);                    // rounded near (lower) tip
-    c.quadraticCurveTo(-1.040, 0.088, -0.930, 0.056);                    // broad underside sweeping home
-    c.quadraticCurveTo(-0.878, 0.038, -0.845, 0.026);                    // blend at the stock
+    c.moveTo(-0.848, -0.020);                                            // on the stock — the blend
+    c.quadraticCurveTo(-0.905, -0.058, -0.975, -0.095);                  // leading edge up-back to the far tip
+    c.quadraticCurveTo(-0.995, -0.104, -0.998, -0.088);                  // rounded far (upper) tip
+    c.quadraticCurveTo(-1.020, -0.048, -1.048, -0.008);                  // trailing edge in, concave
+    c.quadraticCurveTo(-1.030, 0.004, -1.052, 0.014);                    // CLEAR centre notch (forward dimple)
+    c.quadraticCurveTo(-1.100, 0.040, -1.170, 0.072);                    // out to the near tip
+    c.quadraticCurveTo(-1.205, 0.090, -1.190, 0.104);                    // rounded near (lower) tip
+    c.quadraticCurveTo(-1.060, 0.092, -0.945, 0.058);                    // broad underside sweeping home
+    c.quadraticCurveTo(-0.882, 0.038, -0.845, 0.026);                    // blend at the stock
     c.closePath();
     c.fill();
   }
