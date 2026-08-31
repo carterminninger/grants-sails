@@ -99,13 +99,16 @@ export function paintOrca(
   // Only the TOP boundary matters — everything below it is filled and the
   // clip supplies the true lower edge.
   c.beginPath();
-  c.moveTo(0.005, 0.012);
-  c.bezierCurveTo(-0.060, 0.050, -0.160, 0.070, -0.280, 0.078);          // chin → throat line
-  c.bezierCurveTo(-0.360, 0.082, -0.420, 0.082, -0.460, 0.080);
-  c.bezierCurveTo(-0.520, 0.068, -0.580, 0.038, -0.640, -0.008);         // fork: up the flank blaze
-  c.bezierCurveTo(-0.652, 0.022, -0.640, 0.046, -0.612, 0.060);          // down its rear edge
-  c.bezierCurveTo(-0.652, 0.058, -0.700, 0.050, -0.740, 0.044);          // thin strip to the tail
-  c.lineTo(-0.740, 0.160);
+  c.moveTo(0.004, 0.010);
+  c.bezierCurveTo(-0.060, 0.048, -0.160, 0.068, -0.280, 0.076);          // chin → throat line
+  c.bezierCurveTo(-0.360, 0.080, -0.420, 0.080, -0.470, 0.076);
+  // fork: a BOLD white tongue rising behind the dorsal — a lobe with a
+  // rounded tip, not a line
+  c.bezierCurveTo(-0.530, 0.058, -0.590, 0.020, -0.640, -0.020);         // front edge of the tongue
+  c.bezierCurveTo(-0.668, -0.034, -0.690, -0.032, -0.694, -0.016);       // rounded tongue tip
+  c.bezierCurveTo(-0.685, 0.016, -0.658, 0.040, -0.625, 0.056);          // rear edge descending
+  c.bezierCurveTo(-0.662, 0.056, -0.706, 0.050, -0.742, 0.044);          // thin strip to the tail
+  c.lineTo(-0.742, 0.160);
   c.lineTo(0.030, 0.160);
   c.closePath();
   c.fillStyle = WHITE;
