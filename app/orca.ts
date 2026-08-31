@@ -80,13 +80,13 @@ export function paintOrca(
   c.closePath();
   c.fill();
 
-  // pectoral fin — large rounded paddle (not a point), rooted just
-  // behind the head at ~20% back, angled down and back.
+  // pectoral fin — big rounded paddle rooted low just behind the head,
+  // swept back ~30° from vertical rather than hanging straight down.
   c.beginPath();
-  c.moveTo(-0.175, 0.062);
-  c.bezierCurveTo(-0.190, 0.128, -0.225, 0.182, -0.272, 0.198);
-  c.quadraticCurveTo(-0.305, 0.185, -0.300, 0.158);                      // rounded tip
-  c.bezierCurveTo(-0.282, 0.112, -0.262, 0.078, -0.242, 0.062);
+  c.moveTo(-0.160, 0.055);
+  c.bezierCurveTo(-0.192, 0.128, -0.238, 0.198, -0.302, 0.226);          // leading edge, down and back
+  c.quadraticCurveTo(-0.344, 0.240, -0.348, 0.204);                      // fat rounded tip
+  c.bezierCurveTo(-0.330, 0.148, -0.292, 0.088, -0.250, 0.060);          // trailing edge back to the body
   c.closePath();
   c.fill();
 
