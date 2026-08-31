@@ -181,14 +181,12 @@ export function paintOrca(
 
   c.restore(); // clip off
 
-  // mouth — a gentle line curving slightly up toward the eye. Lowest
-  // priority mark; below 100 px it is sub-pixel, so it is gated, not
-  // drawn as mush.
+  // mouth — nearly straight, running back to end under the eye patch,
+  // faintest upturn only. Gated below 100 px where it is sub-pixel.
   if (len >= 100) {
     c.beginPath();
-    c.moveTo(-0.010, 0.028);
-    c.quadraticCurveTo(-0.070, 0.042, -0.118, 0.032);                    // gentle line back along the jaw
-    c.quadraticCurveTo(-0.142, 0.024, -0.152, 0.008);                    // curling up, ending under the eye patch
+    c.moveTo(-0.008, 0.028);
+    c.quadraticCurveTo(-0.085, 0.033, -0.150, 0.021);                    // one shallow arc, no curl
     c.strokeStyle = "rgba(9,17,29,0.9)";
     c.lineWidth = Math.max(0.6 / len, 0.006);
     c.stroke();
