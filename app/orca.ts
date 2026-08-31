@@ -16,7 +16,10 @@
    Then the four colour shapes sized to survive 29 px; mouth line last,
    gated off below 100 px where it would be sub-pixel mush.               */
 
-const BLACK = "rgba(9,17,29,0.96)";        // matches the scene's animal ink
+const BLACK = "#09111d";                   // scene animal ink, OPAQUE — overlapping
+                                           // silhouette parts (dorsal base, fluke/stock
+                                           // blend, pectoral root) cannot double-darken,
+                                           // so part joins carry no seams by construction
 const WHITE = "rgba(234,244,249,0.92)";
 const GREY  = "rgba(122,148,168,0.60)";
 const RIM   = "rgba(255,214,150,0.75)";    // scene sun-rim colour, unchanged
@@ -24,7 +27,8 @@ const RIM   = "rgba(255,214,150,0.75)";    // scene sun-rim colour, unchanged
 /* Body outline as a reusable path — also used as a CLIP for the colour
    patches, so white/grey can be drawn generously and can never bleed
    outside the silhouette. Deepest point ~35% back, depth ~0.22; tail
-   stock narrows to ~0.06 before the flukes.                              */
+   stock narrows to ~0.06 and BLENDS into the flukes (they overlap it;
+   opaque ink means the overlap is invisible).                            */
 function bodyPath(c: CanvasRenderingContext2D) {
   c.beginPath();
   c.moveTo(0, 0.006);                                                    // rounded snout tip
@@ -44,11 +48,17 @@ function bodyPath(c: CanvasRenderingContext2D) {
   c.closePath();
 }
 
+/* Two ruled tail candidates, rendered side by side on the bench:
+   A — flat crescent, the honest side view of horizontal flukes;
+   B — the same crescent with the stock rolled ~25°, near lobe full. */
+export type OrcaTail = "A" | "B";
+
 export function paintOrca(
   c: CanvasRenderingContext2D,
   len: number,
-  opts: { rim?: boolean } = {},
+  opts: { rim?: boolean; tail?: OrcaTail } = {},
 ) {
+  const tail = opts.tail ?? "A";
   c.save();
   c.scale(len, len);
 
@@ -67,20 +77,43 @@ export function paintOrca(
   c.closePath();
   c.fill();
 
-  // flukes — HORIZONTAL, cheated slightly toward a three-quarter view so
-  // the W opens up: span ~0.25 tip-to-tip, thin swept lobes, a clear
-  // forward centre notch. The stock keeps its taper; the lobes carry the
-  // spread.
-  c.beginPath();
-  c.moveTo(-0.893, -0.030);
-  c.quadraticCurveTo(-0.945, -0.055, -1.000, -0.110);                    // leading edge up to the tip
-  c.quadraticCurveTo(-1.014, -0.096, -1.004, -0.076);                    // rounded upper tip, turning back
-  c.quadraticCurveTo(-0.970, -0.038, -0.950, -0.004);                    // WIDE trailing edge → shallow notch
-  c.quadraticCurveTo(-0.978, 0.030, -1.006, 0.080);                      // lower trailing edge out
-  c.quadraticCurveTo(-1.018, 0.102, -1.006, 0.120);                      // rounded lower tip
-  c.quadraticCurveTo(-0.950, 0.064, -0.891, 0.034);                      // leading edge home to the stock
-  c.closePath();
-  c.fill();
+  if (tail === "A") {
+    // tail A — FLAT CRESCENT: one wide thin boomerang sweeping BACK,
+    // tilted ~20° from horizontal; span ~0.26 tip-to-tip, thickness
+    // ~0.04 at centre tapering to rounded tips, shallow notch on the
+    // trailing edge. Total vertical extent ~0.10 — the honest side
+    // view of a horizontal fluke plane. Overlaps the stock: no seam.
+    c.beginPath();
+    c.moveTo(-0.850, -0.022);                                            // on the stock — the blend
+    c.quadraticCurveTo(-1.030, -0.058, -1.148, -0.046);                  // leading edge, back with a rise
+    c.quadraticCurveTo(-1.166, -0.038, -1.156, -0.022);                  // rounded far tip
+    c.quadraticCurveTo(-1.060, -0.016, -1.000, 0.002);                   // trailing edge toward the notch
+    c.quadraticCurveTo(-0.990, 0.008, -0.998, 0.016);                    // shallow trailing-edge notch
+    c.quadraticCurveTo(-0.965, 0.030, -0.930, 0.046);                    // trailing edge out to the near tip
+    c.quadraticCurveTo(-0.906, 0.056, -0.898, 0.044);                    // rounded near tip
+    c.quadraticCurveTo(-0.870, 0.028, -0.845, 0.018);                    // underside, back onto the stock
+    c.closePath();
+    c.fill();
+  } else {
+    // tail B — SLIGHT TWIST: same crescent with the stock rolled ~25°.
+    // Near lobe shows full, sweeping back-and-up; far lobe is
+    // foreshortened, peeking below/behind the stock.
+    c.beginPath();
+    c.moveTo(-0.848, -0.024);                                            // near lobe, from the stock
+    c.quadraticCurveTo(-0.990, -0.072, -1.098, -0.132);                  // leading edge, back and up
+    c.quadraticCurveTo(-1.116, -0.124, -1.106, -0.108);                  // rounded tip
+    c.quadraticCurveTo(-1.000, -0.050, -0.930, -0.006);                  // concave trailing edge home
+    c.quadraticCurveTo(-0.890, 0.010, -0.850, 0.016);                    // blend at the stock
+    c.closePath();
+    c.fill();
+    c.beginPath();
+    c.moveTo(-0.880, 0.014);                                             // far lobe, foreshortened
+    c.quadraticCurveTo(-0.948, 0.032, -0.990, 0.058);                    // short blade, down-back
+    c.quadraticCurveTo(-1.002, 0.070, -0.992, 0.078);                    // rounded stub tip
+    c.quadraticCurveTo(-0.942, 0.060, -0.892, 0.034);                    // underside back to the stock
+    c.closePath();
+    c.fill();
+  }
 
   // pectoral fin — big rounded paddle rooted low just behind the head,
   // swept back ~30° from vertical rather than hanging straight down.
@@ -98,11 +131,14 @@ export function paintOrca(
   c.clip();
 
   // white chin/throat/belly, forking up onto the flank behind the dorsal.
-  // Only the TOP boundary matters — everything below it is filled and the
+  // The boundary starts AT the snout tip and runs just above the mouth
+  // line, so the lower jaw is white from the tip back to the throat
+  // where it joins the belly white. Only the TOP boundary matters — the
   // clip supplies the true lower edge.
   c.beginPath();
-  c.moveTo(0.004, 0.010);
-  c.bezierCurveTo(-0.060, 0.048, -0.160, 0.068, -0.280, 0.076);          // chin → throat line
+  c.moveTo(0.001, -0.006);
+  c.bezierCurveTo(-0.030, 0.008, -0.080, 0.016, -0.135, 0.026);          // lower jaw, above the mouth
+  c.bezierCurveTo(-0.190, 0.045, -0.235, 0.062, -0.280, 0.072);          // down to the throat
   c.bezierCurveTo(-0.360, 0.080, -0.420, 0.080, -0.470, 0.076);
   // fork: a BOLD white tongue rising behind the dorsal — a lobe with a
   // rounded tip, not a line
@@ -116,12 +152,21 @@ export function paintOrca(
   c.fillStyle = WHITE;
   c.fill();
 
-  // eye patch — an OVAL above and behind the eye, tilted up-and-back.
-  // Bold on purpose: at 29 px total length this is ~2 px tall and it is
-  // the single mark that makes the animal read as an orca.
+  // eye patch — slim teardrop: rounded at the front, TAPERING toward the
+  // raised rear, tilted up-and-back. ~20% shallower than the old oval
+  // and a touch longer.
+  c.save();
+  c.translate(-0.160, -0.048);
+  c.rotate(0.35);
   c.beginPath();
-  c.ellipse(-0.160, -0.045, 0.075, 0.026, 0.35, 0, Math.PI * 2);
+  c.moveTo(-0.088, 0);                                                   // tapered rear point (up-back end)
+  c.quadraticCurveTo(-0.030, -0.024, 0.045, -0.019);
+  c.quadraticCurveTo(0.086, -0.012, 0.086, 0.001);                       // rounded front
+  c.quadraticCurveTo(0.080, 0.014, 0.040, 0.020);
+  c.quadraticCurveTo(-0.030, 0.022, -0.088, 0);
+  c.closePath();
   c.fill();
+  c.restore();
 
   // grey saddle patch — starts at the dorsal's trailing base, hugs the
   // back line, and trails slightly down the flank behind it.
