@@ -73,10 +73,10 @@ export function paintOrca(
   // spread.
   c.beginPath();
   c.moveTo(-0.895, -0.026);
-  c.quadraticCurveTo(-0.960, -0.048, -1.010, -0.115);                    // upper lobe, swept back to its tip
-  c.quadraticCurveTo(-0.978, -0.056, -0.936, -0.002);                    // slim trailing edge in to the notch
-  c.quadraticCurveTo(-0.985, 0.062, -1.012, 0.128);                      // out along the lower trailing edge
-  c.quadraticCurveTo(-0.958, 0.058, -0.893, 0.032);                      // lower leading edge back to the stock
+  c.quadraticCurveTo(-0.965, -0.052, -1.015, -0.112);                    // upper lobe, swept back to its tip
+  c.quadraticCurveTo(-0.992, -0.060, -0.962, -0.006);                    // full trailing edge to a SHALLOW notch
+  c.quadraticCurveTo(-0.996, 0.058, -1.018, 0.124);                      // out along the lower trailing edge
+  c.quadraticCurveTo(-0.968, 0.056, -0.893, 0.032);                      // lower leading edge back to the stock
   c.closePath();
   c.fill();
 
