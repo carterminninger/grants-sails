@@ -48,10 +48,12 @@ function bodyPath(c: CanvasRenderingContext2D) {
   c.closePath();
 }
 
-/* Two ruled tail candidates, rendered side by side on the bench:
+/* Ruled tail candidates, rendered side by side on the bench:
    A — flat crescent, the honest side view of horizontal flukes;
-   B — the same crescent with the stock rolled ~25°, near lobe full. */
-export type OrcaTail = "A" | "B";
+   B — the same crescent with the stock rolled ~25°, near lobe full;
+   C — one broad fan blade seen from slightly behind/above, the classic
+       orca-silhouette tail. */
+export type OrcaTail = "A" | "B" | "C";
 
 export function paintOrca(
   c: CanvasRenderingContext2D,
