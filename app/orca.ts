@@ -121,9 +121,14 @@ export function paintOrca(
   c.ellipse(-0.160, -0.045, 0.075, 0.026, 0.35, 0, Math.PI * 2);
   c.fill();
 
-  // grey saddle patch, hugging the dorsal's trailing base.
+  // grey saddle patch — starts at the dorsal's trailing base, hugs the
+  // back line, and trails slightly down the flank behind it.
   c.beginPath();
-  c.ellipse(-0.635, -0.055, 0.085, 0.032, 0.18, 0, Math.PI * 2);
+  c.moveTo(-0.565, -0.100);
+  c.bezierCurveTo(-0.622, -0.096, -0.682, -0.076, -0.726, -0.044);       // along the back, trailing down
+  c.bezierCurveTo(-0.706, -0.028, -0.668, -0.026, -0.636, -0.038);       // lower boundary curving back
+  c.bezierCurveTo(-0.602, -0.052, -0.576, -0.076, -0.565, -0.100);       // up to the fin base
+  c.closePath();
   c.fillStyle = GREY;
   c.fill();
 
