@@ -118,7 +118,7 @@ export function paintOrca(
     c.quadraticCurveTo(-0.942, 0.060, -0.892, 0.034);                    // underside back to the stock
     c.closePath();
     c.fill();
-  } else {
+  } else if (tail === "C") {
     // tail C — BROAD FAN: one blade seen from slightly behind and above,
     // the full upper surface visible — the classic orca-silhouette tail.
     // Span ~0.30 tip-to-tip on an axis ~30° below horizontal (tilted
