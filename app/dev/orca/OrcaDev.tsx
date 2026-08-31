@@ -69,11 +69,11 @@ export default function OrcaDev() {
         <h2 style={{ fontSize: "14px", marginBottom: "10px" }}>TAIL COMPARE — static pose</h2>
         {[600, 200].map(len => (
           <div key={len} style={{ display: "flex", alignItems: "center", gap: "24px", flexWrap: "wrap", marginBottom: "8px" }}>
-            {(["B", "C"] as OrcaTail[]).map(t => (
+            {(["D"] as OrcaTail[]).map(t => (
               <figure key={t} style={{ margin: 0 }}>
                 <OrcaCell len={len} rot={0} scale={1} rim={false} tail={t} />
                 <figcaption style={{ fontSize: "12px", opacity: 0.85, marginTop: "4px" }}>
-                  {t === "B" ? "B — slight twist" : "C — broad fan"} · {len} px
+                  D — broad two-lobed fan (exact path) · {len} px
                 </figcaption>
               </figure>
             ))}
