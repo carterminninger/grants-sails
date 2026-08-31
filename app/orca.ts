@@ -51,12 +51,8 @@ function bodyPath(c: CanvasRenderingContext2D) {
 export function paintOrca(
   c: CanvasRenderingContext2D,
   len: number,
-  opts: { rim?: boolean } | boolean = {},
+  opts: { rim?: boolean } = {},
 ) {
-  // TEMPORARY integration shim (removed in the same series): the scene's
-  // old inline orca took a bare boolean rim flag; accepting it keeps the
-  // import-swap commit green before the call site updates.
-  if (typeof opts === "boolean") opts = { rim: opts };
   c.save();
   c.scale(len, len);
 
