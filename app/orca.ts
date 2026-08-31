@@ -139,8 +139,9 @@ export function paintOrca(
   // drawn as mush.
   if (len >= 100) {
     c.beginPath();
-    c.moveTo(-0.012, 0.030);
-    c.quadraticCurveTo(-0.060, 0.036, -0.115, 0.014);
+    c.moveTo(-0.010, 0.028);
+    c.quadraticCurveTo(-0.070, 0.042, -0.118, 0.032);                    // gentle line back along the jaw
+    c.quadraticCurveTo(-0.142, 0.024, -0.152, 0.008);                    // curling up, ending under the eye patch
     c.strokeStyle = "rgba(9,17,29,0.9)";
     c.lineWidth = Math.max(0.6 / len, 0.006);
     c.stroke();
@@ -156,10 +157,10 @@ export function paintOrca(
     bodyPath(c);
     c.clip();
     c.beginPath();
-    c.moveTo(0, 0.010);
-    c.bezierCurveTo(-0.005, -0.045, -0.050, -0.085, -0.140, -0.105);
-    c.bezierCurveTo(-0.240, -0.120, -0.300, -0.125, -0.380, -0.122);
-    c.bezierCurveTo(-0.500, -0.115, -0.600, -0.095, -0.700, -0.070);
+    c.moveTo(0, 0.006);
+    c.bezierCurveTo(-0.002, -0.022, -0.030, -0.060, -0.095, -0.088);
+    c.bezierCurveTo(-0.180, -0.112, -0.260, -0.123, -0.360, -0.122);
+    c.bezierCurveTo(-0.480, -0.118, -0.590, -0.096, -0.700, -0.070);
     c.strokeStyle = RIM;
     c.lineWidth = Math.max(2 / len, 0.024);
     c.stroke();
