@@ -1109,11 +1109,18 @@ function SkyCanvas({ isMobile = false }) {
           const lift = Math.sin(p * Math.PI);
           const px2 = oX + (p - 0.45) * W * 0.055;
           const py2 = oW - lift * H * 0.135;
+          // Ruled size (2026-08-31): overall body length = 2.2·oL·1.35 on
+          // both breakpoints. The profile's origin is the nose and the body
+          // spans [-len, 0], so shift +0.5·len after rotate/scale keeps
+          // px2/py2 the body CENTRE — cycle, arc, and splash anchors
+          // unchanged.
+          const oLen = 2.2 * oL * 1.35;
           ctx!.save();
           ctx!.translate(px2, py2);
           ctx!.rotate((p - 0.5) * 1.55);
           ctx!.scale(0.92 + lift * 0.22, 0.92 + lift * 0.22);
-          paintOrca(ctx!, oL, lift > 0.25);
+          ctx!.translate(0.5 * oLen, 0);
+          paintOrca(ctx!, oLen, { rim: lift > 0.25 });
           ctx!.restore();
           // Water sheeting off the body. It falls VERTICALLY in screen space —
           // gravity does not care how the animal is rotated — and trails below
