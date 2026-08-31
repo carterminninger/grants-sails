@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { paintOrca } from "./orca";
 
 /* ─── PALETTE — Pacific Northwest maritime ────────────────────── */
 const C = {
