@@ -96,7 +96,7 @@ export function paintOrca(
     c.quadraticCurveTo(-0.870, 0.028, -0.845, 0.018);                    // underside, back onto the stock
     c.closePath();
     c.fill();
-  } else {
+  } else if (tail === "B") {
     // tail B — SLIGHT TWIST: same crescent with the stock rolled ~25°.
     // Near lobe shows full, sweeping back-and-up; far lobe is
     // foreshortened, peeking below/behind the stock.
@@ -113,6 +113,25 @@ export function paintOrca(
     c.quadraticCurveTo(-0.948, 0.032, -0.990, 0.058);                    // short blade, down-back
     c.quadraticCurveTo(-1.002, 0.070, -0.992, 0.078);                    // rounded stub tip
     c.quadraticCurveTo(-0.942, 0.060, -0.892, 0.034);                    // underside back to the stock
+    c.closePath();
+    c.fill();
+  } else {
+    // tail C — BROAD FAN: one blade seen from slightly behind and above,
+    // the full upper surface visible — the classic orca-silhouette tail.
+    // Span ~0.30 tip-to-tip on an axis ~30° below horizontal (tilted
+    // down toward the viewer), vertical extent ~0.18, concave trailing
+    // edge with a clear centre notch, rounded tips, no second lobe.
+    // Overlaps the stock: no seam.
+    c.beginPath();
+    c.moveTo(-0.845, -0.020);                                            // on the stock — the blend
+    c.quadraticCurveTo(-0.885, -0.055, -0.920, -0.062);                  // short leading edge to the far tip
+    c.quadraticCurveTo(-0.940, -0.064, -0.942, -0.050);                  // rounded far (upper) tip
+    c.quadraticCurveTo(-0.975, -0.022, -1.003, 0.002);                   // concave trailing edge in…
+    c.quadraticCurveTo(-0.992, 0.012, -1.012, 0.020);                    // …centre notch dimple…
+    c.quadraticCurveTo(-1.080, 0.048, -1.172, 0.086);                    // …and out to the near tip
+    c.quadraticCurveTo(-1.196, 0.098, -1.180, 0.110);                    // rounded near (lower) tip
+    c.quadraticCurveTo(-1.040, 0.088, -0.930, 0.056);                    // broad underside sweeping home
+    c.quadraticCurveTo(-0.878, 0.038, -0.845, 0.026);                    // blend at the stock
     c.closePath();
     c.fill();
   }
